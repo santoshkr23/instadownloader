@@ -34,7 +34,7 @@
       <input id="url" name="url" type="url" inputmode="url" required
              placeholder="{{ p.placeholder if p else 'Paste an Instagram, YouTube, Pinterest, X or Facebook link' }}"
              aria-label="Media link">
-      <button type="button" id="paste" class="ghost" aria-label="Paste from clipboard">Paste</button>
+      <button type="button" id="clear" class="clear" aria-label="Clear link" hidden>&times;</button>
       <button type="submit" id="go" class="primary">Download</button>
     </form>
     <p id="detected" class="detected" hidden></p>

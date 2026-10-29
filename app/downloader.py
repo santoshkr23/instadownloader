@@ -1,13 +1,17 @@
 """Thin wrapper around yt-dlp: fetch media info and download a chosen option."""
+import json
 import os
 import shutil
+import subprocess
 import tempfile
 from dataclasses import dataclass
 
 import yt_dlp
 
 MAX_FILESIZE = int(os.getenv("MAX_FILESIZE_MB", "500")) * 1024 * 1024
-COOKIES_FILE = os.getenv("COOKIES_FILE")  # optional Netscape cookies.txt for login-only posts
+# Optional Netscape cookies.txt for login-walled posts / YouTube bot checks.
+# On Render, add it as a Secret File named cookies.txt and it is picked up automatically.
+COOKIES_FILE = os.getenv("COOKIES_FILE") or "/etc/secrets/cookies.txt"
 
 IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "gif", "heic"}
 
@@ -19,6 +23,7 @@ class DownloadError(Exception):
 def _base_opts() -> dict:
     opts = {
         "quiet": True,
+        "noprogress": True,
         "no_warnings": True,
         "noplaylist": False,
         "socket_timeout": 20,
@@ -52,25 +57,48 @@ def _options_for(entry: dict) -> list[dict]:
         return [{"id": "image", "label": f"Image ({(entry.get('ext') or 'jpg').upper()})", "ext": entry.get("ext") or "jpg"}]
 
     formats = entry.get("formats") or []
-    has_audio = any(f.get("acodec") not in (None, "none") for f in formats) or not formats
-    options = [{"id": "best", "label": "Best quality (MP4)", "ext": "mp4"}]
+    videos = [f for f in formats if f.get("vcodec") not in (None, "none") and (f.get("height") or f.get("width"))]
+    audios = [f for f in formats if f.get("acodec") not in (None, "none") and f.get("vcodec") in (None, "none")]
+    has_audio = bool(audios) or any(f.get("acodec") not in (None, "none") for f in formats) or not formats
+    audio_size = max(((a.get("filesize") or a.get("filesize_approx") or 0) for a in audios), default=0)
 
-    # One option per distinct video height, best first
-    seen = set()
-    heights = sorted({f.get("height") for f in formats if f.get("height") and f.get("vcodec") not in (None, "none")}, reverse=True)
-    for h in heights:
-        if h in seen or h < 144:
+    # Group by quality tier using the short side, so a vertical 1080x1920 Short counts as 1080p
+    by_tier: dict[int, int] = {}
+    for f in videos:
+        tier = _tier(f)
+        if not tier:
             continue
-        seen.add(h)
-        size = max((f.get("filesize") or f.get("filesize_approx") or 0) for f in formats if f.get("height") == h) or None
-        label = f"{h}p MP4"
+        size = (f.get("filesize") or f.get("filesize_approx") or 0)
+        by_tier[tier] = max(by_tier.get(tier, 0), size)
+
+    options = []
+    for tier in sorted(by_tier, reverse=True):
+        label = f"{TIER_NAMES.get(tier, f'{tier}p')} MP4"
+        size = by_tier[tier] + (audio_size if by_tier[tier] else 0)
         if size:
             label += f" · ~{_human_size(size)}"
-        options.append({"id": f"h{h}", "label": label, "ext": "mp4"})
+        options.append({"id": f"h{tier}", "label": label, "ext": "mp4", "kind": "video"})
+    if not options:
+        options.append({"id": "best", "label": "Best quality MP4", "ext": "mp4", "kind": "video"})
 
     if has_audio:
-        options.append({"id": "audio", "label": "Audio only (MP3)", "ext": "mp3"})
+        for kbps in MP3_BITRATES:
+            options.append({"id": f"mp3_{kbps}", "label": f"MP3 · {kbps} kbps", "ext": "mp3", "kind": "audio"})
     return options
+
+
+TIERS = [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144]
+TIER_NAMES = {4320: "8K (4320p)", 2160: "4K (2160p)", 1440: "2K (1440p)", 1080: "1080p HD", 720: "720p HD"}
+MP3_BITRATES = (320, 192, 128)
+
+
+def _tier(f: dict) -> int | None:
+    """Snap a format's short side to the nearest standard resolution (e.g. 1072 → 1080)."""
+    w, h = f.get("width"), f.get("height")
+    short = min(x for x in (w, h) if x) if (w or h) else None
+    if not short or short < 120:
+        return None
+    return min(TIERS, key=lambda t: abs(t - short))
 
 
 def _item(entry: dict, index: int) -> dict:
@@ -113,21 +141,26 @@ def get_info(url: str) -> dict:
 
 
 def _format_selector(option: str) -> dict:
-    if option == "audio":
+    if option == "audio" or option.startswith("mp3_"):
+        kbps = option.split("_", 1)[1] if "_" in option else "192"
         return {
             "format": "bestaudio/best",
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}],
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": kbps}],
         }
     if option.startswith("h") and option[1:].isdigit():
         h = int(option[1:])
+        # "res" sorts by the short side, so this picks the best stream at or below the
+        # requested tier (works for vertical Shorts/Reels too), preferring H.264/AAC
+        # where that resolution offers it, since it plays everywhere.
         return {
-            "format": f"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b",
+            "format": "bv*+ba/b",
+            "format_sort": [f"res:{h}", "vcodec:h264", "acodec:aac", "ext:mp4:m4a"],
             "merge_output_format": "mp4",
         }
     if option == "image":
         return {"format": "best"}
     # "best"
-    return {"format": "bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b", "merge_output_format": "mp4"}
+    return {"format": "bv*+ba/b", "format_sort": ["res", "vcodec:h264", "acodec:aac", "ext:mp4:m4a"], "merge_output_format": "mp4"}
 
 
 @dataclass
@@ -162,8 +195,64 @@ def download(url: str, option: str, item: int = 0) -> DownloadedFile:
         shutil.rmtree(workdir, ignore_errors=True)
         raise DownloadError("Nothing was downloaded. The file may be larger than the size limit.")
     files.sort(key=lambda f: os.path.getsize(os.path.join(workdir, f)), reverse=True)
-    name = files[0]
-    return DownloadedFile(path=os.path.join(workdir, name), filename=name, workdir=workdir)
+    path = os.path.join(workdir, files[0])
+    if path.lower().endswith(".mp4"):
+        try:
+            path = make_playable(path)
+        except Exception:
+            shutil.rmtree(workdir, ignore_errors=True)
+            raise DownloadError("Couldn't convert this video to a playable format. Please try a lower quality.")
+    return DownloadedFile(path=path, filename=os.path.basename(path), workdir=workdir)
+
+
+# ---------- make sure the MP4 actually plays everywhere ----------
+# Instagram and YouTube often serve AV1 or VP9 video. Many phones, WhatsApp and
+# Windows' built-in player can't decode those and play only the sound, so any MP4
+# whose video isn't H.264 (or whose audio isn't AAC) gets converted.
+PLAYABLE_VIDEO = {"h264"}
+PLAYABLE_AUDIO = {"aac", "mp3"}
+REENCODE_MAX_SHORT_SIDE = int(os.getenv("REENCODE_MAX_SHORT_SIDE", "1080"))
+
+
+def _probe(path: str) -> dict:
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height", "-of", "json", path],
+        capture_output=True, text=True, timeout=60, check=True,
+    ).stdout
+    streams = json.loads(out).get("streams", [])
+    v = next((s for s in streams if s.get("codec_type") == "video"), None)
+    a = next((s for s in streams if s.get("codec_type") == "audio"), None)
+    return {"video": v, "audio": a}
+
+
+def make_playable(path: str) -> str:
+    info = _probe(path)
+    v, a = info["video"], info["audio"]
+    if not v:
+        return path  # audio-only file; nothing to fix
+    v_ok = v.get("codec_name") in PLAYABLE_VIDEO
+    a_ok = a is None or a.get("codec_name") in PLAYABLE_AUDIO
+    if v_ok and a_ok:
+        return path
+
+    short_side = min(x for x in (v.get("width"), v.get("height")) if x) if (v.get("width") or v.get("height")) else 0
+    # Re-encoding 1440p/4K on a small server takes too long, so those stay as they are
+    # (they play in VLC, Chrome and recent phones).
+    if not v_ok and short_side > REENCODE_MAX_SHORT_SIDE:
+        v_ok = True
+        if a_ok:
+            return path
+
+    out = path[:-4] + ".h264.mp4"
+    cmd = ["ffmpeg", "-y", "-v", "error", "-i", path, "-map", "0:v:0", "-map", "0:a:0?"]
+    cmd += ["-c:v", "copy"] if v_ok else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p"]
+    cmd += ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k"]
+    cmd += ["-movflags", "+faststart", out]
+    subprocess.run(cmd, check=True, timeout=1800, capture_output=True)
+    os.remove(path)
+    final = path  # keep the original nice filename
+    os.replace(out, final)
+    return final
 
 
 def _friendly(msg: str) -> str:

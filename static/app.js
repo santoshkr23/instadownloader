@@ -31,17 +31,28 @@
   const showError = (msg) => { errBox.textContent = msg; errBox.hidden = false; };
   const clearError = () => { errBox.hidden = true; errBox.textContent = ""; };
 
+  const clearBtn = $("clear");
   input.addEventListener("input", () => {
     const p = detect(input.value);
     detected.hidden = !p;
     if (p) detected.textContent = `Detected: ${p.name}`;
+    clearBtn.hidden = !input.value;
   });
 
-  $("paste")?.addEventListener("click", async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) { input.value = text.trim(); input.dispatchEvent(new Event("input")); }
-    } catch { input.focus(); }
+  // Pasting a supported link starts the lookup straight away — no button needed
+  input.addEventListener("paste", () => {
+    setTimeout(() => {
+      input.dispatchEvent(new Event("input"));
+      if (detect(input.value)) form.requestSubmit();
+    }, 0);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    input.dispatchEvent(new Event("input"));
+    clearError();
+    result.hidden = true; result.innerHTML = "";
+    input.focus();
   });
 
   // allow ?url=... deep links
@@ -88,10 +99,15 @@
     }
     for (const it of items) {
       const dur = fmtDur(it.duration);
-      const opts = it.options.map((o) => {
+      const link = (o) => {
         const href = `${API}/api/download?url=${encodeURIComponent(url)}&option=${encodeURIComponent(o.id)}&item=${it.index}`;
         return `<a class="opt" href="${href}" data-dl><span>${esc(o.label)}</span><span class="dl">Download</span></a>`;
-      }).join("");
+      };
+      const vids = it.options.filter((o) => o.kind !== "audio");
+      const auds = it.options.filter((o) => o.kind === "audio");
+      const opts =
+        (vids.length ? (auds.length ? `<p class="opt-head">Video</p>` : "") + vids.map(link).join("") : "") +
+        (auds.length ? `<p class="opt-head">Audio</p>` + auds.map(link).join("") : "");
       html += `
         <div class="card media">
           <div class="thumb">

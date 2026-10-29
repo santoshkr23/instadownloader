@@ -7,4 +7,4 @@ COPY . .
 ENV PORT=8000
 EXPOSE 8000
 # keep yt-dlp current on every container start: platforms change often
-CMD pip install -q -U yt-dlp && uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips="*"
+CMD pip install -q -U "yt-dlp[default]" && uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips="*"

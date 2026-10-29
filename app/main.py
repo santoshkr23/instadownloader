@@ -130,7 +130,7 @@ async def api_info(body: InfoRequest, request: Request):
 async def api_download(
     request: Request,
     url: str = Query(...),
-    option: str = Query("best", pattern=r"^(best|audio|image|h\d{3,4})$"),
+    option: str = Query("best", pattern=r"^(best|audio|image|h\d{3,4}|mp3_(128|192|320))$"),
     item: int = Query(0, ge=0, le=50),
 ):
     _check_rate(request)

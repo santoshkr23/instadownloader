@@ -3,7 +3,7 @@
 A free web app to download media from **Instagram, YouTube, Pinterest, Twitter/X and Facebook** — paste a link, pick a quality, save.
 
 - Instagram: Reels, videos, photos, carousel posts (each item downloadable)
-- YouTube: videos & Shorts in every available resolution, or MP3 audio
+- YouTube: videos & Shorts from 360p up to 4K, or MP3 at 320/192/128 kbps (needs Deno, installed via requirements)
 - Pinterest: video pins and images (incl. `pin.it` short links)
 - Twitter / X: videos and GIFs from posts
 - Facebook: public videos and Reels
@@ -12,7 +12,7 @@ Each platform has its own SEO page (`/instagram-downloader`, `/youtube-downloade
 
 ## Stack
 
-- **Backend:** FastAPI + [yt-dlp](https://github.com/yt-dlp/yt-dlp) (does the actual extraction) + ffmpeg (merging HD video/audio, MP3)
+- **Backend:** FastAPI + [yt-dlp](https://github.com/yt-dlp/yt-dlp) (does the actual extraction) + Deno (required by yt-dlp for YouTube) + ffmpeg (merging HD video/audio, MP3, converting AV1/VP9 to H.264 so videos don't play as sound-only)
 - **Frontend:** server-rendered Jinja templates, plain CSS/JS, light & dark mode, mobile-first
 
 ## Run locally
@@ -53,7 +53,8 @@ Note: datacenter IPs are often rate-limited or blocked by Instagram and YouTube.
 | `SITE_URL` | `http://localhost:8000` | Used for canonical URLs & sitemap |
 | `RATE_LIMIT_PER_MIN` | `20` | Requests per IP per minute |
 | `MAX_FILESIZE_MB` | `500` | Largest file the server will fetch |
-| `COOKIES_FILE` | – | Optional Netscape cookies.txt path for login-walled posts |
+| `COOKIES_FILE` | `/etc/secrets/cookies.txt` | Netscape cookies.txt for login-walled posts / YouTube "confirm you're not a bot". On Render: service → Environment → Secret Files → add `cookies.txt` |
+| `REENCODE_MAX_SHORT_SIDE` | `1080` | AV1/VP9 videos up to this size are converted to H.264 so they play on every phone/PC |
 
 ## API
 
