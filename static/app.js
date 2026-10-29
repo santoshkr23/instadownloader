@@ -7,6 +7,7 @@
     { key: "facebook", name: "Facebook", re: /(^|\.)(facebook\.com|fb\.watch|fb\.com)$/ },
   ];
 
+  const API = (window.API_BASE || "").replace(/\/$/, "");
   const $ = (id) => document.getElementById(id);
   const form = $("dl-form"), input = $("url"), go = $("go");
   const errBox = $("error"), loading = $("loading"), result = $("result"), detected = $("detected");
@@ -57,8 +58,12 @@
     }
     result.hidden = true; result.innerHTML = "";
     loading.hidden = false; go.disabled = true;
+    const loadingText = loading.querySelector("span");
+    loadingText.textContent = "Fetching media…";
+    // free hosting sleeps when idle; tell people why the first request is slow
+    const slow = setTimeout(() => { loadingText.textContent = "Waking up the server — the first download can take up to a minute…"; }, 6000);
     try {
-      const res = await fetch("/api/info", {
+      const res = await fetch(API + "/api/info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -67,8 +72,9 @@
       if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
       render(url, data);
     } catch (err) {
-      showError(err.message);
+      showError(err instanceof TypeError ? "Can't reach the download server right now. Please try again in a minute." : err.message);
     } finally {
+      clearTimeout(slow);
       loading.hidden = true; go.disabled = false;
     }
   });
@@ -83,7 +89,7 @@
     for (const it of items) {
       const dur = fmtDur(it.duration);
       const opts = it.options.map((o) => {
-        const href = `/api/download?url=${encodeURIComponent(url)}&option=${encodeURIComponent(o.id)}&item=${it.index}`;
+        const href = `${API}/api/download?url=${encodeURIComponent(url)}&option=${encodeURIComponent(o.id)}&item=${it.index}`;
         return `<a class="opt" href="${href}" data-dl><span>${esc(o.label)}</span><span class="dl">Download</span></a>`;
       }).join("");
       html += `

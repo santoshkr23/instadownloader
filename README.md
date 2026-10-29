@@ -33,7 +33,15 @@ docker run -p 8000:8000 instadownloader
 
 ## Deploy
 
-Needs a host that runs a long-lived server with ffmpeg (not static hosting / Vercel functions). `render.yaml` is included for Render (New → Blueprint → pick this repo). Railway, Fly.io, or any VPS with Docker works too.
+The app has two parts:
+
+1. **Website → GitHub Pages** (`https://santoshkr23.github.io/instadownloader/`).
+   Every push to `main` runs `.github/workflows/pages.yml`, which builds static pages with `build_static.py` and publishes them to the `gh-pages` branch. If Pages isn't on yet: Settings → Pages → Source "Deploy from a branch" → `gh-pages` / root.
+2. **Download server → Render** (free plan). On render.com: New → Blueprint → pick this repo → Apply. `render.yaml` sets everything up. The free plan sleeps after ~15 min idle, so the first request after that takes 30–60 s.
+
+If your Render URL isn't `https://instadownloader.onrender.com`, add a repo variable `API_BASE` with the real URL (Settings → Secrets and variables → Actions → Variables) and re-run the workflow.
+
+The server also serves the full site itself, so you can skip GitHub Pages and use the Render URL directly. Railway, Fly.io, or any VPS with Docker works too.
 
 Note: datacenter IPs are often rate-limited or blocked by Instagram and YouTube. If you see "needs a login" / "rate-limiting" errors in production, set `COOKIES_FILE` to a cookies.txt from a throwaway account, or route through a residential proxy.
 

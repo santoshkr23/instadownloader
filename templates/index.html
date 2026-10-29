@@ -16,10 +16,10 @@
 <section class="hero">
   <div class="wrap">
     <div class="tabs" role="tablist">
-      <a href="/" class="tab {{ 'active' if not current }}">All</a>
+      <a href="{{ base }}/" class="tab {{ 'active' if not current }}">All</a>
       {% for key, pl in platforms.items() %}
-      <a href="/{{ pl.slug }}" class="tab {{ 'active' if current == key }}" style="--c: {{ pl.color }}">
-        <img src="/static/icons/{{ key }}.svg" alt="" width="18" height="18">{{ pl.name }}
+      <a href="{{ base }}/{{ pl.slug }}/" class="tab {{ 'active' if current == key }}" style="--c: {{ pl.color }}">
+        <img src="{{ base }}/static/icons/{{ key }}.svg" alt="" width="18" height="18">{{ pl.name }}
       </a>
       {% endfor %}
     </div>
@@ -63,8 +63,8 @@
   <h2>Supported platforms</h2>
   <div class="grid">
     {% for key, pl in platforms.items() %}
-    <a class="pcard" href="/{{ pl.slug }}" style="--c: {{ pl.color }}">
-      <img src="/static/icons/{{ key }}.svg" alt="" width="32" height="32">
+    <a class="pcard" href="{{ base }}/{{ pl.slug }}/" style="--c: {{ pl.color }}">
+      <img src="{{ base }}/static/icons/{{ key }}.svg" alt="" width="32" height="32">
       <b>{{ pl.name }}</b>
       <span>{{ pl.what[0] | upper }}{{ pl.what[1:] }}</span>
     </a>

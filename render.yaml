@@ -2,14 +2,16 @@ services:
   - type: web
     name: instadownloader
     runtime: docker
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: SITE_NAME
         value: SaveIt
       - key: SITE_URL
-        value: https://your-domain.com
+        value: https://santoshkr23.github.io/instadownloader
       - key: RATE_LIMIT_PER_MIN
         value: "20"
       - key: MAX_FILESIZE_MB
         value: "500"
+      - key: ALLOWED_ORIGINS
+        value: https://santoshkr23.github.io

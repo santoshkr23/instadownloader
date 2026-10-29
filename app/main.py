@@ -5,6 +5,7 @@ from collections import defaultdict, deque
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -20,7 +21,17 @@ SITE_NAME = os.getenv("SITE_NAME", "SaveIt")
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
 RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
 
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
 app = FastAPI(title=SITE_NAME, docs_url=None, redoc_url=None)
+# lets the static GitHub Pages frontend call this server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+    expose_headers=["Content-Disposition"],
+)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
@@ -58,6 +69,8 @@ def _page_ctx(request: Request, key: str | None):
     p = PLATFORMS.get(key) if key else None
     return {
         "request": request,
+        "base": "",       # URL prefix for links/assets ("/instadownloader" on GitHub Pages)
+        "api_base": "",   # where /api lives ("" = same server)
         "site_name": SITE_NAME,
         "site_url": SITE_URL,
         "platforms": PLATFORMS,
@@ -152,6 +165,7 @@ async def http_error(request: Request, exc: StarletteHTTPException):
 
 # platform pages last so they don't shadow the fixed routes above
 @app.get("/{slug}", response_class=HTMLResponse)
+@app.get("/{slug}/", response_class=HTMLResponse, include_in_schema=False)
 def platform_page(request: Request, slug: str):
     key = _SLUGS.get(slug)
     if not key:

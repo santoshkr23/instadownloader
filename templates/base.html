@@ -11,20 +11,20 @@
   <meta property="og:url" content="{{ canonical }}">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="{{ p.color if p else '#7C3AED' }}">
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="{{ base }}/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="{{ base }}/static/style.css">
   <style>:root{--accent: {{ p.color if p else '#7C3AED' }};}</style>
   {% block head %}{% endblock %}
 </head>
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <a href="/" class="logo"><span class="logo-mark">↓</span>{{ site_name }}</a>
+      <a href="{{ base }}/" class="logo"><span class="logo-mark">↓</span>{{ site_name }}</a>
       <nav class="nav">
         {% for key, pl in platforms.items() %}
-        <a href="/{{ pl.slug }}" class="{{ 'active' if current == key }}" style="--c: {{ pl.color }}">{{ pl.name }}</a>
+        <a href="{{ base }}/{{ pl.slug }}/" class="{{ 'active' if current == key }}" style="--c: {{ pl.color }}">{{ pl.name }}</a>
         {% endfor %}
       </nav>
     </div>
@@ -35,11 +35,12 @@
   <footer class="footer">
     <div class="wrap">
       <div class="footer-links">
-        {% for key, pl in platforms.items() %}<a href="/{{ pl.slug }}">{{ pl.name }} downloader</a>{% endfor %}
+        {% for key, pl in platforms.items() %}<a href="{{ base }}/{{ pl.slug }}/">{{ pl.name }} downloader</a>{% endfor %}
       </div>
       <p class="disclaimer">{{ site_name }} is not affiliated with Instagram, YouTube, Pinterest, X or Facebook. Only download content you own or have permission to use, and respect each platform's terms and creators' copyright.</p>
     </div>
   </footer>
-  <script src="/static/app.js" defer></script>
+  <script>window.API_BASE = {{ api_base | tojson }};</script>
+  <script src="{{ base }}/static/app.js" defer></script>
 </body>
 </html>
