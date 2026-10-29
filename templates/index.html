@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "Is {{ site_name }} free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. There is no signup, app or watermark."}},
+    {"@type": "Question", "name": "Can I download private posts?", "acceptedAnswer": {"@type": "Answer", "text": "No. Only public posts can be downloaded."}},
+    {"@type": "Question", "name": "Where are downloaded files saved?", "acceptedAnswer": {"@type": "Answer", "text": "In your browser's Downloads folder (or Files app on iPhone)."}}
+  ]
+}
+</script>
+{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <a href="/" class="tab {{ 'active' if not current }}">All</a>
+      {% for key, pl in platforms.items() %}
+      <a href="/{{ pl.slug }}" class="tab {{ 'active' if current == key }}" style="--c: {{ pl.color }}">
+        <img src="/static/icons/{{ key }}.svg" alt="" width="18" height="18">{{ pl.name }}
+      </a>
+      {% endfor %}
+    </div>
+
+    <h1>{% if p %}{{ p.name }} Downloader{% else %}Download from <span class="grad">anywhere</span>{% endif %}</h1>
+    <p class="lead">
+      {% if p %}Save {{ p.name }} {{ p.what }} in HD. Paste a link below.
+      {% else %}Instagram Reels, YouTube videos, Pinterest pins, Twitter/X clips and Facebook videos — paste any link.{% endif %}
+    </p>
+
+    <form id="dl-form" class="search" autocomplete="off">
+      <input id="url" name="url" type="url" inputmode="url" required
+             placeholder="{{ p.placeholder if p else 'Paste an Instagram, YouTube, Pinterest, X or Facebook link' }}"
+             aria-label="Media link">
+      <button type="button" id="paste" class="ghost" aria-label="Paste from clipboard">Paste</button>
+      <button type="submit" id="go" class="primary">Download</button>
+    </form>
+    <p id="detected" class="detected" hidden></p>
+    <div id="error" class="error" role="alert" hidden></div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div id="loading" class="card loading" hidden>
+    <div class="spinner"></div><span>Fetching media…</span>
+  </div>
+  <div id="result" hidden></div>
+</section>
+
+<section class="wrap how">
+  <h2>How to download {% if p %}from {{ p.name }}{% else %}in 3 steps{% endif %}</h2>
+  <ol class="steps">
+    <li><b>Copy the link</b><span>Open the {% if p %}{{ p.name }} {% endif %}post, tap Share → Copy link.</span></li>
+    <li><b>Paste it here</b><span>Drop the link in the box above and press Download.</span></li>
+    <li><b>Pick a quality</b><span>Choose HD, a smaller size, or audio only — the file saves to your device.</span></li>
+  </ol>
+</section>
+
+{% if not current %}
+<section class="wrap">
+  <h2>Supported platforms</h2>
+  <div class="grid">
+    {% for key, pl in platforms.items() %}
+    <a class="pcard" href="/{{ pl.slug }}" style="--c: {{ pl.color }}">
+      <img src="/static/icons/{{ key }}.svg" alt="" width="32" height="32">
+      <b>{{ pl.name }}</b>
+      <span>{{ pl.what[0] | upper }}{{ pl.what[1:] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="wrap faq">
+  <h2>FAQ</h2>
+  <details><summary>Is it free?</summary><p>Yes — no signup, no app, no watermark.</p></details>
+  <details><summary>Can I download private posts?</summary><p>No. Only public posts are supported; private accounts and login-only content can't be fetched.</p></details>
+  <details><summary>Does it work on iPhone and Android?</summary><p>Yes. On iPhone, files go to the Files app → Downloads. On Android they land in your Downloads folder.</p></details>
+  <details><summary>Why does a download fail sometimes?</summary><p>The post may be private, deleted, region-locked, or the platform may be rate-limiting. Try again in a minute.</p></details>
+</section>
+{% endblock %}
