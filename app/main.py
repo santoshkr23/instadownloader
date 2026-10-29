@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from collections import defaultdict, deque
 
@@ -106,7 +107,14 @@ def sitemap():
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    import yt_dlp.version
+    return {
+        "ok": True,
+        "version": (os.getenv("RENDER_GIT_COMMIT") or "local")[:7],  # matches the GitHub commit Render is running
+        "yt_dlp": yt_dlp.version.__version__,
+        "deno": shutil.which("deno") is not None,
+        "cookies": os.path.exists(downloader.COOKIES_FILE),
+    }
 
 
 # ---------------- API ----------------

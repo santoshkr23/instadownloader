@@ -1,5 +1,6 @@
 """Thin wrapper around yt-dlp: fetch media info and download a chosen option."""
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -15,12 +16,19 @@ COOKIES_FILE = os.getenv("COOKIES_FILE") or "/etc/secrets/cookies.txt"
 
 IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "gif", "heic"}
 
+log = logging.getLogger("downloader")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+if os.path.exists(COOKIES_FILE):
+    log.info("cookies file found at %s", COOKIES_FILE)
+else:
+    log.info("no cookies file (%s) — YouTube may ask this server to 'confirm you're not a bot'", COOKIES_FILE)
+
 
 class DownloadError(Exception):
     pass
 
 
-def _base_opts() -> dict:
+def _base_opts(workdir: str | None = None) -> dict:
     opts = {
         "quiet": True,
         "noprogress": True,
@@ -31,8 +39,12 @@ def _base_opts() -> dict:
         "restrictfilenames": True,
         "default_search": None,  # never treat input as a search query
     }
-    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
-        opts["cookiefile"] = COOKIES_FILE
+    if workdir and COOKIES_FILE and os.path.exists(COOKIES_FILE):
+        # yt-dlp writes cookies back when it finishes; Render's secret files are read-only
+        # and requests run in parallel, so each request gets its own copy.
+        copy = os.path.join(workdir, ".cookies.txt")
+        shutil.copyfile(COOKIES_FILE, copy)
+        opts["cookiefile"] = copy
     return opts
 
 
@@ -118,11 +130,15 @@ def _item(entry: dict, index: int) -> dict:
 
 
 def get_info(url: str) -> dict:
+    tmp = tempfile.mkdtemp(prefix="info_")
     try:
-        with yt_dlp.YoutubeDL(_base_opts()) as ydl:
+        with yt_dlp.YoutubeDL(_base_opts(tmp)) as ydl:
             info = ydl.extract_info(url, download=False)
     except yt_dlp.utils.DownloadError as e:
-        raise DownloadError(_friendly(str(e))) from e
+        log.warning("info failed for %s: %s", url, e)
+        raise DownloadError(_friendly(str(e), url)) from e
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
     if info.get("_type") == "playlist" or info.get("entries"):
         entries = [e for e in (info.get("entries") or []) if e]
@@ -175,7 +191,7 @@ class DownloadedFile:
 
 def download(url: str, option: str, item: int = 0) -> DownloadedFile:
     workdir = tempfile.mkdtemp(prefix="dl_")
-    opts = _base_opts()
+    opts = _base_opts(workdir)
     opts.update(_format_selector(option))
     opts["outtmpl"] = os.path.join(workdir, "%(title).80B [%(id)s].%(ext)s")
     if item > 0:
@@ -187,10 +203,12 @@ def download(url: str, option: str, item: int = 0) -> DownloadedFile:
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
     except yt_dlp.utils.DownloadError as e:
+        log.warning("download failed for %s (%s): %s", url, option, e)
         shutil.rmtree(workdir, ignore_errors=True)
-        raise DownloadError(_friendly(str(e))) from e
+        raise DownloadError(_friendly(str(e), url)) from e
 
-    files = [f for f in os.listdir(workdir) if not f.endswith((".part", ".ytdl", ".temp"))]
+    files = [f for f in os.listdir(workdir)
+             if not f.startswith(".") and not f.endswith((".part", ".ytdl", ".temp"))]
     if not files:
         shutil.rmtree(workdir, ignore_errors=True)
         raise DownloadError("Nothing was downloaded. The file may be larger than the size limit.")
@@ -255,10 +273,17 @@ def make_playable(path: str) -> str:
     return final
 
 
-def _friendly(msg: str) -> str:
-    m = msg.lower()
-    if "login" in m or "cookies" in m or "private" in m:
-        return "This post is private or needs a login. Only public posts can be downloaded."
+def _friendly(msg: str, url: str = "") -> str:
+    m = msg.lower().replace("’", "'")
+    # YouTube shows this to cloud-server IPs even for public videos
+    if "not a bot" in m or "sign in to confirm" in m:
+        return ("YouTube is temporarily blocking our download server (its 'confirm you're not a bot' check). "
+                "The video is fine; please try again later.")
+    if "private" in m:
+        return "This post is private. Only public posts can be downloaded."
+    if "login" in m or "log in" in m or "sign in" in m or "cookies" in m:
+        site = "Instagram" if "instagram" in url else "This site"
+        return f"{site} is asking our server to log in before it shares this post. Please try again later."
     if "unsupported url" in m:
         return "That link isn't a supported post URL."
     if "not available" in m or "removed" in m or "404" in m:
