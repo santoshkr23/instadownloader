@@ -1,0 +1,39 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit ' ~ item.name if original else 'Add platform' }}{% endblock %}
+{% block content %}
+<h1>{{ 'Edit ' ~ item.name if original else 'Add platform' }}</h1>
+<p class="sub"><a href="/admin/platforms">← All platforms</a></p>
+<form method="post" action="/admin/platforms/save" class="edit card">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="original" value="{{ original }}">
+  <div class="row2">
+    <label>Name<input type="text" name="name" value="{{ item.name or '' }}" placeholder="TikTok" required maxlength="40"></label>
+    <label>Key <small>short id, lowercase (e.g. tiktok)</small><input type="text" name="key" value="{{ item.key or '' }}" placeholder="tiktok" required pattern="[a-z0-9][a-z0-9-]*" maxlength="31"></label>
+  </div>
+  <label>Website addresses <small>one or more, separated by commas (e.g. tiktok.com, vm.tiktok.com)</small>
+    <input type="text" name="hosts" value="{{ (item.hosts|join(', ')) if item.hosts is not string else item.hosts }}" placeholder="tiktok.com" required></label>
+  <div class="row2">
+    <label>Page address <small>leave blank for “{key}-downloader”</small><input type="text" name="slug" value="{{ item.slug or '' }}" placeholder="tiktok-downloader"></label>
+    <label>Brand color<input type="text" name="color" value="{{ item.color or '#7C3AED' }}" placeholder="#000000" pattern="#[0-9a-fA-F]{6}"></label>
+  </div>
+  <div class="row2">
+    <label>Mode
+      <select name="mode">
+        <option value="download" {{ 'selected' if item.mode != 'offers' }}>Download — show the downloader</option>
+        <option value="offers" {{ 'selected' if item.mode == 'offers' }}>Offers — show affiliate offers instead</option>
+      </select>
+    </label>
+    <label class="check" style="align-self:end;padding-bottom:10px"><input type="checkbox" name="enabled" {{ 'checked' if item.enabled }}> Live on the site</label>
+  </div>
+  <label>Notice in offers mode <small>shown at the top of the page and when someone pastes a link</small>
+    <input type="text" name="notice" value="{{ item.notice or '' }}" placeholder="TikTok downloads aren't available right now. Here are some tools you might like instead." maxlength="300"></label>
+  <fieldset>
+    <legend>Page text (for Google)</legend>
+    <label>What it downloads <small>used in “Save {name} …”</small><input type="text" name="what" value="{{ item.what or '' }}" placeholder="videos without watermark" maxlength="80"></label>
+    <label>Page title<input type="text" name="title" value="{{ item.title or '' }}" placeholder="TikTok Downloader – Save Videos Without Watermark" maxlength="120"></label>
+    <label>Page description<textarea name="description" maxlength="300" placeholder="Download TikTok videos in HD…">{{ item.description or '' }}</textarea></label>
+    <label>Link box placeholder<input type="text" name="placeholder" value="{{ item.placeholder or '' }}" placeholder="https://www.tiktok.com/@user/video/..." maxlength="120"></label>
+  </fieldset>
+  <div class="form-actions"><button class="primary">Save</button><a class="btn" href="/admin/platforms">Cancel</a></div>
+</form>
+{% endblock %}

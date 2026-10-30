@@ -1,5 +1,8 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icon, offer_section %}
+{% set offers_mode = p and p.mode == 'offers' %}
 {% block head %}
+{% if not offers_mode %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -11,6 +14,7 @@
   ]
 }
 </script>
+{% endif %}
 {% endblock %}
 {% block content %}
 <section class="hero">
@@ -19,44 +23,61 @@
       <a href="{{ base }}/" class="tab {{ 'active' if not current }}">All</a>
       {% for key, pl in platforms.items() %}
       <a href="{{ base }}/{{ pl.slug }}/" class="tab {{ 'active' if current == key }}" style="--c: {{ pl.color }}">
-        <img src="{{ base }}/static/icons/{{ key }}.svg" alt="" width="18" height="18">{{ pl.name }}
+        {{ icon(key, pl, base, icons) }}{{ pl.name }}
       </a>
       {% endfor %}
     </div>
 
-    <h1>{% if p %}{{ p.name }} Downloader{% else %}Download from <span class="grad">anywhere</span>{% endif %}</h1>
-    <p class="lead">
-      {% if p %}Save {{ p.name }} {{ p.what }} in HD. Paste a link below.
-      {% else %}Instagram Reels, YouTube videos, Pinterest pins, Twitter/X clips and Facebook videos — paste any link.{% endif %}
-    </p>
+    {% if offers_mode %}
+      <h1>{{ p.name }} Downloader</h1>
+      <p class="lead">{{ p.notice or (p.name ~ " downloads aren't available right now.") }}</p>
+    {% else %}
+      <h1>{% if p %}{{ p.name }} Downloader{% else %}Download from <span class="grad">anywhere</span>{% endif %}</h1>
+      <p class="lead">
+        {% if p %}Save {{ p.name }} {{ p.what }} in HD. Paste a link below.
+        {% else %}{{ supported_names }} — paste any link.{% endif %}
+      </p>
 
-    <form id="dl-form" class="search" autocomplete="off">
-      <input id="url" name="url" type="url" inputmode="url" required
-             placeholder="{{ p.placeholder if p else 'Paste an Instagram, YouTube, Pinterest, X or Facebook link' }}"
-             aria-label="Media link">
-      <button type="button" id="clear" class="clear" aria-label="Clear link" hidden>&times;</button>
-      <button type="submit" id="go" class="primary">Download</button>
-    </form>
-    <p id="detected" class="detected" hidden></p>
-    <div id="error" class="error" role="alert" hidden></div>
+      <form id="dl-form" class="search" autocomplete="off">
+        <input id="url" name="url" type="url" inputmode="url" required
+               placeholder="{{ p.placeholder if p else 'Paste a video or photo link' }}"
+               aria-label="Media link">
+        <button type="button" id="clear" class="clear" aria-label="Clear link" hidden>&times;</button>
+        <button type="submit" id="go" class="primary">Download</button>
+      </form>
+      <p id="detected" class="detected" hidden></p>
+      <div id="error" class="error" role="alert" hidden></div>
+    {% endif %}
   </div>
 </section>
 
+{% if offers_mode %}
+  {{ offer_section(offers.top, page, "You might like", big=true) }}
+  {% if not offers.top %}
+  <section class="wrap"><p class="lead" style="text-align:center">Try one of our other downloaders above.</p></section>
+  {% endif %}
+{% else %}
 <section class="wrap">
   <div id="loading" class="card loading" hidden>
     <div class="spinner"></div><span>Fetching media…</span>
   </div>
   <div id="result" hidden></div>
 </section>
+{% endif %}
 
+{% if not offers_mode %}
 <section class="wrap how">
   <h2>How to download {% if p %}from {{ p.name }}{% else %}in 3 steps{% endif %}</h2>
   <ol class="steps">
     <li><b>Copy the link</b><span>Open the {% if p %}{{ p.name }} {% endif %}post, tap Share → Copy link.</span></li>
-    <li><b>Paste it here</b><span>Drop the link in the box above and press Download.</span></li>
-    <li><b>Pick a quality</b><span>Choose HD, a smaller size, or audio only — the file saves to your device.</span></li>
+    <li><b>Paste it here</b><span>Paste the link in the box above — it starts by itself.</span></li>
+    <li><b>Pick a quality</b><span>Choose HD, a smaller size, or MP3 — the file saves to your device.</span></li>
   </ol>
 </section>
+{% endif %}
+
+{{ offer_section(offers.pages, page, "Recommended for you") }}
+{{ offer_section(offers.home, page, "Recommended for you") }}
 
 {% if not current %}
 <section class="wrap">
@@ -64,15 +85,16 @@
   <div class="grid">
     {% for key, pl in platforms.items() %}
     <a class="pcard" href="{{ base }}/{{ pl.slug }}/" style="--c: {{ pl.color }}">
-      <img src="{{ base }}/static/icons/{{ key }}.svg" alt="" width="32" height="32">
+      {{ icon(key, pl, base, icons, 32) }}
       <b>{{ pl.name }}</b>
-      <span>{{ pl.what[0] | upper }}{{ pl.what[1:] }}</span>
+      <span>{% if pl.mode == 'offers' %}Coming soon{% else %}{{ pl.what[0] | upper }}{{ pl.what[1:] }}{% endif %}</span>
     </a>
     {% endfor %}
   </div>
 </section>
 {% endif %}
 
+{% if not offers_mode %}
 <section class="wrap faq">
   <h2>FAQ</h2>
   <details><summary>Is it free?</summary><p>Yes — no signup, no app, no watermark.</p></details>
@@ -80,4 +102,5 @@
   <details><summary>Does it work on iPhone and Android?</summary><p>Yes. On iPhone, files go to the Files app → Downloads. On Android they land in your Downloads folder.</p></details>
   <details><summary>Why does a download fail sometimes?</summary><p>The post may be private, deleted, region-locked, or the platform may be rate-limiting. Try again in a minute.</p></details>
 </section>
+{% endif %}
 {% endblock %}

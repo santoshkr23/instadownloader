@@ -3,6 +3,8 @@ name: Publish site to GitHub Pages
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - data/stats.json
   workflow_dispatch:
 
 permissions:

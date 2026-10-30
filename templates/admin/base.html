@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Admin{% endblock %} · {{ site_name }}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    :root { --bg:#f6f5fa; --surface:#fff; --text:#17141f; --muted:#6b6680; --border:#e6e2ef; --soft:#f1eef8; --accent:#7C3AED; --ok:#047857; --okbg:#e7f7ef; --bad:#b4233c; --badbg:#fdebee; --warnbg:#fff6e0; --warn:#8a5a00; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0f0d16; --surface:#18151f; --text:#f1eff8; --muted:#a39db8; --border:#2a2536; --soft:#211d2c; --okbg:#0f2a20; --ok:#6ee7b7; --badbg:#3b0d1a; --bad:#fda4af; --warnbg:#2e2410; --warn:#fcd34d; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Plus Jakarta Sans",system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; font-size:15px; }
+    a { color: var(--accent); }
+    .shell { display:grid; grid-template-columns: 220px 1fr; min-height:100vh; }
+    .side { background:var(--surface); border-right:1px solid var(--border); padding:20px 14px; display:flex; flex-direction:column; gap:4px; }
+    .brand { display:flex; align-items:center; gap:8px; font-weight:800; font-size:1.05rem; padding:0 8px 18px; text-decoration:none; color:var(--text); }
+    .brand span { display:grid; place-items:center; width:28px; height:28px; border-radius:8px; background:var(--accent); color:#fff; }
+    .side a.nav { display:block; padding:9px 12px; border-radius:10px; text-decoration:none; color:var(--muted); font-weight:600; }
+    .side a.nav:hover { background:var(--soft); color:var(--text); }
+    .side a.nav.on { background:var(--soft); color:var(--accent); }
+    .side .spacer { flex:1; }
+    .side form button { width:100%; text-align:left; }
+    main { padding:28px 32px 60px; max-width:1100px; width:100%; }
+    h1 { font-size:1.6rem; margin:0 0 6px; letter-spacing:-.01em; }
+    .sub { color:var(--muted); margin:0 0 22px; }
+    .head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; }
+    .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
+    .stat b { display:block; font-size:1.7rem; letter-spacing:-.02em; }
+    .stat span { color:var(--muted); font-size:.85rem; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:11px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    th { font-size:.76rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; }
+    tr:last-child td { border-bottom:0; }
+    .table-wrap { overflow-x:auto; padding:6px 8px; }
+    .muted { color:var(--muted); font-size:.88rem; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.78rem; font-weight:700; }
+    .pill.on { background:var(--okbg); color:var(--ok); }
+    .pill.off { background:var(--soft); color:var(--muted); }
+    .pill.offers { background:var(--warnbg); color:var(--warn); }
+    .dot { display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:-1px; margin-right:6px; }
+    .actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+    .actions form { margin:0; }
+    button, .btn { font:inherit; font-weight:700; font-size:.88rem; border:1px solid var(--border); background:var(--surface); color:var(--text); padding:7px 12px; border-radius:9px; cursor:pointer; text-decoration:none; display:inline-block; white-space:nowrap; }
+    button:hover, .btn:hover { border-color:var(--accent); }
+    .btn.primary, button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    button.danger { color:var(--bad); }
+    button.danger:hover { border-color:var(--bad); }
+    button.icon { padding:7px 9px; }
+    .flash { padding:12px 16px; border-radius:12px; margin-bottom:18px; font-weight:600; }
+    .flash.ok { background:var(--okbg); color:var(--ok); }
+    .flash.bad { background:var(--badbg); color:var(--bad); }
+    .warn { background:var(--warnbg); color:var(--warn); padding:12px 16px; border-radius:12px; margin-bottom:18px; }
+    .warn b { display:block; }
+    form.edit { display:grid; gap:16px; max-width:720px; }
+    label { display:grid; gap:6px; font-weight:700; font-size:.9rem; }
+    label small { font-weight:500; color:var(--muted); }
+    input[type=text], input[type=url], input[type=password], textarea, select { font:inherit; font-weight:500; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); width:100%; }
+    input:focus, textarea:focus, select:focus { outline:2px solid color-mix(in srgb, var(--accent) 40%, transparent); border-color:var(--accent); }
+    textarea { min-height:80px; resize:vertical; }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .check { display:flex; align-items:center; gap:10px; font-weight:600; }
+    .check input { width:18px; height:18px; accent-color:var(--accent); }
+    fieldset { border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:grid; gap:8px; }
+    legend { font-weight:700; font-size:.9rem; padding:0 6px; }
+    .form-actions { display:flex; gap:10px; }
+    .preview { border:1px dashed var(--border); border-radius:12px; padding:14px; }
+    @media (max-width: 800px) {
+      .shell { grid-template-columns:1fr; }
+      .side { flex-direction:row; flex-wrap:wrap; align-items:center; padding:12px; border-right:0; border-bottom:1px solid var(--border); }
+      .brand { padding:0 8px 0 0; }
+      .side .spacer { display:none; }
+      .side form button { width:auto; }
+      main { padding:20px 16px 48px; }
+      .grid4 { grid-template-columns:repeat(2,1fr); }
+      .row2 { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+{% if request.session.get('admin') %}
+<div class="shell">
+  <aside class="side">
+    <a class="brand" href="/admin"><span>↓</span>{{ site_name }}</a>
+    <a class="nav {{ 'on' if nav == 'dashboard' }}" href="/admin">Dashboard</a>
+    <a class="nav {{ 'on' if nav in ('platforms','platform') }}" href="/admin/platforms">Platforms</a>
+    <a class="nav {{ 'on' if nav in ('offers','offer') }}" href="/admin/offers">Affiliate offers</a>
+    <a class="nav {{ 'on' if nav == 'settings' }}" href="/admin/settings">Settings</a>
+    <a class="nav" href="/" target="_blank">View site ↗</a>
+    <div class="spacer"></div>
+    <form method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Log out</button></form>
+  </aside>
+  <main>
+    {% if flash %}<div class="flash {{ 'ok' if flash.ok else 'bad' }}">{{ flash.message }}</div>{% endif %}
+    {% if not github %}
+    <div class="warn"><b>Changes won't survive a restart yet.</b>Add a <code>GITHUB_TOKEN</code> in Render → Environment so changes save to GitHub and update the github.io site.</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+{% block bare %}{% endblock %}
+{% endif %}
+</body>
+</html>

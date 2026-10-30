@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit offer' if original else 'Add offer' }}{% endblock %}
+{% block content %}
+<h1>{{ 'Edit offer' if original else 'Add offer' }}</h1>
+<p class="sub"><a href="/admin/offers">← All offers</a></p>
+<form method="post" action="/admin/offers/save" class="edit card">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="original" value="{{ original }}">
+  <div class="row2">
+    <label>Title<input type="text" name="title" value="{{ item.title or '' }}" placeholder="Fast VPN for India" required maxlength="80"></label>
+    <label>Id <small>short, lowercase (e.g. nordvpn)</small><input type="text" name="id" value="{{ item.id or '' }}" placeholder="nordvpn" required pattern="[a-z0-9][a-z0-9-]*" maxlength="31"></label>
+  </div>
+  <label>Affiliate link <small>your tracking link from Amazon, Flipkart, Cuelinks, etc.</small>
+    <input type="url" name="url" value="{{ item.url or '' }}" placeholder="https://amzn.to/..." required></label>
+  <label>Short text<textarea name="text" maxlength="240" placeholder="Watch any video privately. 63% off + 3 months free.">{{ item.text or '' }}</textarea></label>
+  <div class="row2">
+    <label>Button text<input type="text" name="button" value="{{ item.button or '' }}" placeholder="Get the deal" maxlength="30"></label>
+    <label>Badge <small>optional, e.g. “-60%” or “Free”</small><input type="text" name="badge" value="{{ item.badge or '' }}" maxlength="24"></label>
+  </div>
+  <label>Image link <small>optional product or logo image (https://…)</small><input type="url" name="image" value="{{ item.image or '' }}" placeholder="https://…/logo.png"></label>
+  <fieldset>
+    <legend>Where to show it</legend>
+    {% for key, label in placements.items() %}
+    <label class="check"><input type="checkbox" name="placements" value="{{ key }}" {{ 'checked' if key in (item.placements or []) }}> {{ label }}</label>
+    {% endfor %}
+  </fieldset>
+  <label class="check"><input type="checkbox" name="enabled" {{ 'checked' if item.enabled }}> Live on the site</label>
+  <div class="form-actions"><button class="primary">Save</button><a class="btn" href="/admin/offers">Cancel</a></div>
+</form>
+{% endblock %}

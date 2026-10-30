@@ -45,11 +45,25 @@ The server also serves the full site itself, so you can skip GitHub Pages and us
 
 Note: datacenter IPs are often rate-limited or blocked by Instagram and YouTube. If you see "needs a login" / "rate-limiting" errors in production, set `COOKIES_FILE` to a cookies.txt from a throwaway account, or route through a residential proxy.
 
+## Admin panel
+
+Open `https://<your-render-address>/admin` and log in with `ADMIN_PASSWORD`.
+
+- **Platforms:** add new sites (TikTok, Reddit, Vimeo… anything yt-dlp supports), edit their page text, hide them, reorder them, or switch one to **Offers** mode (shows your affiliate offers instead of the downloader, e.g. YouTube).
+- **Affiliate offers:** cards with your affiliate links, shown wherever you tick: home page, every downloader page, below the download buttons, and on offers-mode pages. Visitors open them by clicking; each card is marked Sponsored and clicks are counted.
+- **Settings:** site name.
+
+Settings are stored in `data/config.json`. With `GITHUB_TOKEN` set, each save is committed to this repo: the Render site changes instantly and the github.io site rebuilds in ~2 minutes. Click counts go to `data/stats.json` every 5 minutes (that file doesn't trigger rebuilds).
+
+To create the token: GitHub → Settings → Developer settings → Fine-grained tokens → Generate → Repository access: only `instadownloader` → Permissions: Contents = Read and write.
+
 ## Config (environment variables)
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SITE_NAME` | `SaveIt` | Brand name shown on pages |
+| `ADMIN_PASSWORD` | – | Password for /admin (required to use the admin panel) |
+| `SECRET_KEY` | random | Signs the admin login cookie; Render generates it |
+| `GITHUB_TOKEN` | – | Fine-grained token with Contents read/write on this repo, so admin changes are saved to `data/config.json` |
 | `SITE_URL` | `http://localhost:8000` | Used for canonical URLs & sitemap |
 | `RATE_LIMIT_PER_MIN` | `20` | Requests per IP per minute |
 | `MAX_FILESIZE_MB` | `500` | Largest file the server will fetch |

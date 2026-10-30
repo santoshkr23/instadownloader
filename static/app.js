@@ -1,13 +1,30 @@
 (() => {
-  const PLATFORMS = [
-    { key: "instagram", name: "Instagram", re: /(^|\.)(instagram\.com|instagr\.am)$/ },
-    { key: "youtube", name: "YouTube", re: /(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/ },
-    { key: "pinterest", name: "Pinterest", re: /(^|\.)(pinterest\.[a-z.]+|pin\.it)$/ },
-    { key: "twitter", name: "Twitter / X", re: /(^|\.)(twitter\.com|x\.com|t\.co)$/ },
-    { key: "facebook", name: "Facebook", re: /(^|\.)(facebook\.com|fb\.watch|fb\.com)$/ },
-  ];
+  const SITE = window.SITE || { api: "", page: "other", platforms: [], offers: [] };
+  const API = (SITE.api || "").replace(/\/$/, "");
 
-  const API = (window.API_BASE || "").replace(/\/$/, "");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---- offer click counting (works on every page, including offers-only pages) ----
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-offer]");
+    if (!a) return;
+    const url = `${API}/api/click/${encodeURIComponent(a.dataset.offer)}?page=${encodeURIComponent(a.dataset.page || SITE.page)}`;
+    try {
+      if (!(navigator.sendBeacon && navigator.sendBeacon(url))) fetch(url, { method: "POST", keepalive: true, mode: "no-cors" });
+    } catch { /* counting must never block the visit */ }
+  });
+
+  const offerCard = (o, page) => `
+    <a class="offer" href="${esc(o.url)}" target="_blank" rel="sponsored nofollow noopener" data-offer="${esc(o.id)}" data-page="${esc(page)}">
+      ${o.image ? `<img class="offer-img" src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}
+      <div class="offer-body">
+        <div class="offer-top"><b>${esc(o.title)}</b>${o.badge ? `<span class="offer-badge">${esc(o.badge)}</span>` : ""}</div>
+        ${o.text ? `<p>${esc(o.text)}</p>` : ""}
+        <span class="offer-btn">${esc(o.button)} ↗</span>
+      </div>
+    </a>`;
+
+  // ---- downloader ----
   const $ = (id) => document.getElementById(id);
   const form = $("dl-form"), input = $("url"), go = $("go");
   const errBox = $("error"), loading = $("loading"), result = $("result"), detected = $("detected");
@@ -16,11 +33,12 @@
   const detect = (url) => {
     try {
       const host = new URL(url.trim()).hostname.toLowerCase();
-      return PLATFORMS.find((p) => p.re.test(host)) || null;
+      return SITE.platforms.find((p) => p.hosts.some((h) => host === h || host.endsWith("." + h))) || null;
     } catch { return null; }
   };
+  const supported = SITE.platforms.filter((p) => p.mode === "download").map((p) => p.name);
+  const supportedText = supported.length > 1 ? supported.slice(0, -1).join(", ") + " or " + supported.at(-1) : supported[0] || "a supported site";
 
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtDur = (s) => {
     if (!s) return "";
     s = Math.round(s);
@@ -63,11 +81,18 @@
     e.preventDefault();
     clearError();
     const url = input.value.trim();
-    if (!detect(url)) {
-      showError("Paste a link from Instagram, YouTube, Pinterest, Twitter/X or Facebook.");
+    const p = detect(url);
+    if (!p) { showError(`Paste a link from ${supportedText}.`); return; }
+    result.hidden = true; result.innerHTML = "";
+    if (p.mode === "offers") {
+      // this platform is switched to offers in the admin panel
+      showError(p.notice || `${p.name} downloads aren't available right now.`);
+      if (SITE.offers.length) {
+        result.innerHTML = `<div class="offers">${SITE.offers.map((o) => offerCard(o, "blocked-paste")).join("")}</div>`;
+        result.hidden = false;
+      }
       return;
     }
-    result.hidden = true; result.innerHTML = "";
     loading.hidden = false; go.disabled = true;
     const loadingText = loading.querySelector("span");
     loadingText.textContent = "Fetching media…";
@@ -120,6 +145,10 @@
             <div class="opts">${opts}</div>
           </div>
         </div>`;
+    }
+    if (SITE.offers.length) {
+      html += `<div class="offers-head"><span class="sponsored">Sponsored</span></div>
+               <div class="offers">${SITE.offers.map((o) => offerCard(o, "after-download")).join("")}</div>`;
     }
     result.innerHTML = html;
     result.hidden = false;

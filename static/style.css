@@ -84,6 +84,29 @@ button:disabled { opacity: .55; cursor: wait; }
 .opt.busy { pointer-events: none; opacity: .6; }
 .opt.busy .dl::after { content: " …"; }
 
+/* letter icon for platforms added in the admin panel */
+.letter { display: inline-grid; place-items: center; border-radius: 6px; background: var(--c); color: #fff; font-weight: 800; line-height: 1; flex: none; }
+
+/* affiliate offers */
+.offers-sec { margin-top: 8px; }
+.offers-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.offers-head h2 { margin-bottom: 14px; }
+#result .offers-head { margin-top: 4px; }
+.sponsored { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.offers { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.offer { display: flex; gap: 14px; padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); text-decoration: none; color: var(--text); transition: border-color .15s, transform .15s; }
+.offer:hover { border-color: var(--accent); transform: translateY(-2px); }
+.offer-img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; flex: none; background: var(--soft); }
+.offer-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.offer-top { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.offer-body p { margin: 0; color: var(--muted); font-size: .9rem; }
+.offer-badge { flex: none; font-size: .75rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.offer-btn { margin-top: auto; padding-top: 4px; font-weight: 700; font-size: .9rem; color: var(--accent); }
+.offers-big { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.offer.big { flex-direction: column; padding: 20px; }
+.offer.big .offer-img { width: 100%; height: 150px; }
+.offer.big .offer-btn { align-self: flex-start; background: var(--accent); color: #fff; padding: 9px 16px; border-radius: 10px; margin-top: 8px; }
+
 /* content sections */
 .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; counter-reset: s; }
 @media (max-width: 680px) { .steps { grid-template-columns: 1fr; } }

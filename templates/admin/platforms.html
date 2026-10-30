@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% block title %}Platforms{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <h1>Platforms</h1>
+    <p class="sub">Each platform gets its own page. <b>Download</b> mode shows the downloader; <b>Offers</b> mode shows your affiliate offers instead.</p>
+  </div>
+  <a class="btn primary" href="/admin/platforms/new">+ Add platform</a>
+</div>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Platform</th><th>Page</th><th>Mode</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for p in items %}
+      <tr>
+        <td><span class="dot" style="background: {{ p.color }}"></span><b>{{ p.name }}</b><div class="muted">{{ p.hosts|join(', ') }}</div></td>
+        <td class="muted">/{{ p.slug }}/</td>
+        <td><span class="pill {{ 'offers' if p.mode == 'offers' else 'on' }}">{{ 'Offers' if p.mode == 'offers' else 'Download' }}</span></td>
+        <td><span class="pill {{ 'on' if p.enabled else 'off' }}">{{ 'Live' if p.enabled else 'Hidden' }}</span></td>
+        <td>
+          <div class="actions">
+            {% for a, label, cls in [('up','↑','icon'),('down','↓','icon')] %}
+            <form method="post" action="/admin/platforms/{{ p.key }}/{{ a }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="{{ cls }}" title="Move {{ a }}">{{ label }}</button></form>
+            {% endfor %}
+            <a class="btn" href="/admin/platforms/{{ p.key }}">Edit</a>
+            <form method="post" action="/admin/platforms/{{ p.key }}/mode"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ 'Use download' if p.mode == 'offers' else 'Show offers' }}</button></form>
+            <form method="post" action="/admin/platforms/{{ p.key }}/toggle"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ 'Hide' if p.enabled else 'Show' }}</button></form>
+            <form method="post" action="/admin/platforms/{{ p.key }}/delete" onsubmit="return confirm('Delete {{ p.name }}? Its page will disappear.')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Delete</button></form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="muted">New platforms work if the download engine (yt-dlp) supports the site — e.g. TikTok, Reddit, Vimeo, Dailymotion, Twitch clips, SoundCloud. Test a link after adding one.</p>
+{% endblock %}

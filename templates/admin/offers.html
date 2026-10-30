@@ -1,0 +1,39 @@
+{% extends "admin/base.html" %}
+{% block title %}Affiliate offers{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <h1>Affiliate offers</h1>
+    <p class="sub">Cards with your affiliate links. Visitors open them by clicking — they're marked “Sponsored”.</p>
+  </div>
+  <a class="btn primary" href="/admin/offers/new">+ Add offer</a>
+</div>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Offer</th><th>Shown on</th><th>Clicks</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for o in items %}
+      <tr>
+        <td><b>{{ o.title }}</b><div class="muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.url }}</div></td>
+        <td class="muted">{% for pl in o.placements %}{{ placements[pl] }}{% if not loop.last %}<br>{% endif %}{% else %}Nowhere yet{% endfor %}</td>
+        <td><b>{{ stats.get(o.id, {}).get('clicks', 0) }}</b></td>
+        <td><span class="pill {{ 'on' if o.enabled else 'off' }}">{{ 'Live' if o.enabled else 'Paused' }}</span></td>
+        <td>
+          <div class="actions">
+            {% for a, label in [('up','↑'),('down','↓')] %}
+            <form method="post" action="/admin/offers/{{ o.id }}/{{ a }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="icon" title="Move {{ a }}">{{ label }}</button></form>
+            {% endfor %}
+            <a class="btn" href="/admin/offers/{{ o.id }}">Edit</a>
+            <form method="post" action="/admin/offers/{{ o.id }}/toggle"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ 'Pause' if o.enabled else 'Go live' }}</button></form>
+            <form method="post" action="/admin/offers/{{ o.id }}/delete" onsubmit="return confirm('Delete this offer?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Delete</button></form>
+          </div>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">No offers yet. Add your Amazon, Flipkart, VPN or software affiliate links.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="muted">Order here is the order on the site. Use the link from your affiliate dashboard exactly as given so your commission is tracked.</p>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="sub">Offer clicks and what's live on the site.</p>
+
+{% if not has_secret %}
+<div class="warn"><b>Set SECRET_KEY.</b>Without it you're logged out every time the server restarts. Add any long random text as <code>SECRET_KEY</code> in Render → Environment.</div>
+{% endif %}
+
+<div class="grid4">
+  <div class="card stat"><b>{{ total_clicks }}</b><span>Offer clicks</span></div>
+  <div class="card stat"><b>{{ n_offers }}</b><span>Live offers</span></div>
+  <div class="card stat"><b>{{ n_live }} / {{ n_platforms }}</b><span>Platforms live</span></div>
+  <div class="card stat"><b>{{ 'On' if github else 'Off' }}</b><span>Saving to GitHub</span></div>
+</div>
+
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Offer</th><th>Status</th><th>Clicks</th><th>Top pages</th></tr></thead>
+    <tbody>
+    {% for row in offers %}
+      <tr>
+        <td><a href="/admin/offers/{{ row.o.id }}"><b>{{ row.o.title }}</b></a></td>
+        <td><span class="pill {{ 'on' if row.o.enabled else 'off' }}">{{ 'Live' if row.o.enabled else 'Paused' }}</span></td>
+        <td><b>{{ row.clicks }}</b></td>
+        <td class="muted">{% for page, n in row.by_page|dictsort(by='value', reverse=true) %}{% if loop.index <= 3 %}{{ page }} ({{ n }}){% if not loop.last and loop.index < 3 %}, {% endif %}{% endif %}{% else %}–{% endfor %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">No offers yet. <a href="/admin/offers/new">Add your first affiliate offer</a>.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="muted">Clicks are saved to GitHub every 5 minutes, so the last few minutes can be lost if the server restarts.{% if last_sync.at %} Last settings save: {{ last_sync.message }}{% endif %}</p>
+{% endblock %}

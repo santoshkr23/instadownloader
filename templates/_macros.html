@@ -1,0 +1,29 @@
+{% macro icon(key, pl, base, icons, size=18) -%}
+{% if key in icons -%}
+<img src="{{ base }}/static/icons/{{ key }}.svg" alt="" width="{{ size }}" height="{{ size }}">
+{%- else -%}
+<span class="letter" style="--c: {{ pl.color }}; width: {{ size }}px; height: {{ size }}px; font-size: {{ (size * 0.55)|int }}px">{{ pl.name[0]|upper }}</span>
+{%- endif %}
+{%- endmacro %}
+
+{% macro offer_card(o, page, big=false) -%}
+<a class="offer {{ 'big' if big }}" href="{{ o.url }}" target="_blank" rel="sponsored nofollow noopener" data-offer="{{ o.id }}" data-page="{{ page }}">
+  {% if o.image %}<img class="offer-img" src="{{ o.image }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+  <div class="offer-body">
+    <div class="offer-top"><b>{{ o.title }}</b>{% if o.badge %}<span class="offer-badge">{{ o.badge }}</span>{% endif %}</div>
+    {% if o.text %}<p>{{ o.text }}</p>{% endif %}
+    <span class="offer-btn">{{ o.button }} ↗</span>
+  </div>
+</a>
+{%- endmacro %}
+
+{% macro offer_section(list, page, heading, big=false) -%}
+{% if list %}
+<section class="wrap offers-sec">
+  <div class="offers-head"><h2>{{ heading }}</h2><span class="sponsored">Sponsored</span></div>
+  <div class="offers {{ 'offers-big' if big }}">
+    {% for o in list %}{{ offer_card(o, page, big) }}{% endfor %}
+  </div>
+</section>
+{% endif %}
+{%- endmacro %}

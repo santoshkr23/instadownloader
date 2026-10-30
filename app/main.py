@@ -7,24 +7,27 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import downloader
-from .platforms import PLATFORMS, detect_platform
+from starlette.middleware.sessions import SessionMiddleware
+
+from . import admin, config, downloader, pages
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SITE_NAME = os.getenv("SITE_NAME", "SaveIt")
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
 RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 
-app = FastAPI(title=SITE_NAME, docs_url=None, redoc_url=None)
+app = FastAPI(title="Downloader", docs_url=None, redoc_url=None)
+# signed cookie for the admin login; SECRET_KEY must be set in production
+app.add_middleware(SessionMiddleware, secret_key=admin.SECRET_KEY, session_cookie="admin_session",
+                   max_age=12 * 3600, same_site="strict", https_only=SITE_URL.startswith("https"))
 # lets the static GitHub Pages frontend call this server
 app.add_middleware(
     CORSMiddleware,
@@ -60,27 +63,30 @@ def _validate(url: str) -> str:
     url = (url or "").strip()
     if len(url) > 2048:
         raise HTTPException(400, "That link is too long.")
-    platform = detect_platform(url)
-    if not platform:
-        raise HTTPException(400, "Paste a link from Instagram, YouTube, Pinterest, Twitter/X or Facebook.")
-    return platform
+    platform = config.detect_platform(url)
+    if platform:
+        return platform
+    p = config.detect_any(url)
+    if p and p["enabled"]:
+        raise HTTPException(400, p["notice"] or f"{p['name']} downloads aren't available right now.")
+    names = [x["name"] for x in config.platforms() if x["mode"] == "download"]
+    raise HTTPException(400, "Paste a link from " + (", ".join(names) or "a supported site") + ".")
 
 
 def _page_ctx(request: Request, key: str | None):
-    p = PLATFORMS.get(key) if key else None
-    return {
-        "request": request,
-        "base": "",       # URL prefix for links/assets ("/instadownloader" on GitHub Pages)
-        "api_base": "",   # where /api lives ("" = same server)
-        "site_name": SITE_NAME,
-        "site_url": SITE_URL,
-        "platforms": PLATFORMS,
-        "current": key,
-        "p": p,
-        "page_title": p["title"] if p else f"{SITE_NAME} – Instagram, YouTube, Pinterest, Twitter & Facebook Downloader",
-        "page_description": p["description"] if p else "Free online downloader for Instagram Reels, YouTube videos, Pinterest pins, Twitter/X videos and Facebook videos. No app or signup needed.",
-        "canonical": f"{SITE_URL}/{p['slug']}" if p else f"{SITE_URL}/",
-    }
+    ctx = pages.page_context(key, base="", api_base="", site_url=SITE_URL)
+    ctx["request"] = request
+    return ctx
+
+
+@app.on_event("startup")
+def _startup():
+    config.start_background()
+
+
+@app.on_event("shutdown")
+def _shutdown():
+    config.flush_stats()
 
 
 # ---------------- pages ----------------
@@ -89,17 +95,14 @@ def home(request: Request):
     return templates.TemplateResponse(request, "index.html", _page_ctx(request, None))
 
 
-_SLUGS = {p["slug"]: k for k, p in PLATFORMS.items()}
-
-
 @app.get("/robots.txt", response_class=PlainTextResponse)
 def robots():
-    return f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {SITE_URL}/sitemap.xml\n"
+    return f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nSitemap: {SITE_URL}/sitemap.xml\n"
 
 
 @app.get("/sitemap.xml")
 def sitemap():
-    urls = [f"{SITE_URL}/"] + [f"{SITE_URL}/{p['slug']}" for p in PLATFORMS.values()]
+    urls = [f"{SITE_URL}/"] + [f"{SITE_URL}/{p['slug']}/" for p in config.platforms()]
     body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     body += "".join(f"  <url><loc>{u}</loc></url>\n" for u in urls) + "</urlset>\n"
     return PlainTextResponse(body, media_type="application/xml")
@@ -114,6 +117,7 @@ def health():
         "yt_dlp": yt_dlp.version.__version__,
         "deno": shutil.which("deno") is not None,
         "cookies": os.path.exists(downloader.COOKIES_FILE),
+        "settings_saved_to_github": config.github_enabled(),
     }
 
 
@@ -155,6 +159,24 @@ async def api_download(
     )
 
 
+# offer click counter, called with navigator.sendBeacon when someone clicks an offer
+_click_hits: dict[str, deque] = defaultdict(deque)
+
+
+@app.post("/api/click/{offer_id}")
+def api_click(offer_id: str, request: Request, page: str = "other"):
+    q = _click_hits[_client_ip(request)]
+    now = time.time()
+    while q and now - q[0] > 60:
+        q.popleft()
+    if len(q) < 30 and config.record_click(offer_id[:40], page):
+        q.append(now)
+    return Response(status_code=204)
+
+
+app.include_router(admin.router)
+
+
 @app.exception_handler(RequestValidationError)
 async def bad_params(request: Request, exc: RequestValidationError):
     return JSONResponse({"error": "Invalid request."}, status_code=400)
@@ -162,6 +184,8 @@ async def bad_params(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error(request: Request, exc: StarletteHTTPException):
+    if request.url.path.startswith("/admin") and exc.status_code in (401, 403):
+        return RedirectResponse("/admin/login", status_code=303)
     if request.url.path.startswith("/api/"):
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
     if exc.status_code == 404:
@@ -175,7 +199,7 @@ async def http_error(request: Request, exc: StarletteHTTPException):
 @app.get("/{slug}", response_class=HTMLResponse)
 @app.get("/{slug}/", response_class=HTMLResponse, include_in_schema=False)
 def platform_page(request: Request, slug: str):
-    key = _SLUGS.get(slug)
+    key = next((p["key"] for p in config.platforms() if p["slug"] == slug), None)
     if not key:
         raise HTTPException(404, "Not found")
     return templates.TemplateResponse(request, "index.html", _page_ctx(request, key))

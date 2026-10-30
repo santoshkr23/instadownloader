@@ -4,9 +4,10 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /health
+    buildFilter:
+      ignoredPaths:
+        - data/**
     envVars:
-      - key: SITE_NAME
-        value: SaveIt
       - key: SITE_URL
         value: https://santoshkr23.github.io/instadownloader
       - key: RATE_LIMIT_PER_MIN
@@ -15,3 +16,9 @@ services:
         value: "500"
       - key: ALLOWED_ORIGINS
         value: https://santoshkr23.github.io
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GITHUB_TOKEN
+        sync: false
