@@ -3,7 +3,7 @@
 The pages are static; downloads are done by the FastAPI server (e.g. on Render),
 whose address is given by API_BASE.
 
-    API_BASE=https://instadownloader.onrender.com BASE_PATH=/instadownloader python build_static.py
+    API_BASE=https://instadownloader-ce1o.onrender.com BASE_PATH=/instadownloader python build_static.py
 """
 import os
 import shutil
@@ -17,7 +17,7 @@ OUT = os.path.join(ROOT, "dist")
 
 SITE_NAME = os.getenv("SITE_NAME", "SaveIt")
 BASE_PATH = os.getenv("BASE_PATH", "/instadownloader").rstrip("/")
-API_BASE = os.getenv("API_BASE", "https://instadownloader.onrender.com").rstrip("/")
+API_BASE = os.getenv("API_BASE", "https://instadownloader-ce1o.onrender.com").rstrip("/")
 SITE_URL = os.getenv("SITE_URL", f"https://santoshkr23.github.io{BASE_PATH}").rstrip("/")
 
 env = Environment(loader=FileSystemLoader(os.path.join(ROOT, "templates")), autoescape=select_autoescape(["html"]))

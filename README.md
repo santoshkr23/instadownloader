@@ -39,7 +39,7 @@ The app has two parts:
    Every push to `main` runs `.github/workflows/pages.yml`, which builds static pages with `build_static.py` and publishes them to the `gh-pages` branch. If Pages isn't on yet: Settings → Pages → Source "Deploy from a branch" → `gh-pages` / root.
 2. **Download server → Render** (free plan). On render.com: New → Blueprint → pick this repo → Apply. `render.yaml` sets everything up. The free plan sleeps after ~15 min idle, so the first request after that takes 30–60 s.
 
-If your Render URL isn't `https://instadownloader.onrender.com`, add a repo variable `API_BASE` with the real URL (Settings → Secrets and variables → Actions → Variables) and re-run the workflow.
+If your Render URL isn't `https://instadownloader-ce1o.onrender.com`, add a repo variable `API_BASE` with the real URL (Settings → Secrets and variables → Actions → Variables) and re-run the workflow.
 
 The server also serves the full site itself, so you can skip GitHub Pages and use the Render URL directly. Railway, Fly.io, or any VPS with Docker works too.
 

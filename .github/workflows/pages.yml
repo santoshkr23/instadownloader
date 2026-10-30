@@ -21,7 +21,7 @@ jobs:
         env:
           # Set repo variable API_BASE (Settings → Secrets and variables → Actions → Variables)
           # if your Render URL is different.
-          API_BASE: ${{ vars.API_BASE || 'https://instadownloader.onrender.com' }}
+          API_BASE: ${{ vars.API_BASE || 'https://instadownloader-ce1o.onrender.com' }}
           BASE_PATH: /${{ github.event.repository.name }}
         run: python build_static.py
       - name: Push to gh-pages branch
