@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+ENV PIP_ROOT_USER_ACTION=ignore PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
