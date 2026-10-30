@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://santoshkr23.github.io/instadownloader/sitemap.xml
