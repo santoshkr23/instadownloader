@@ -109,6 +109,12 @@
       render(url, data);
     } catch (err) {
       showError(err instanceof TypeError ? "Can't reach the download server right now. Please try again in a minute." : err.message);
+      // when a download can't be done (e.g. YouTube blocking the server), still show the offers
+      if (SITE.offers.length) {
+        result.innerHTML = `<div class="offers-head"><span class="sponsored">Sponsored</span></div>
+                            <div class="offers">${SITE.offers.map((o) => offerCard(o, "failed-download")).join("")}</div>`;
+        result.hidden = false;
+      }
     } finally {
       clearTimeout(slow);
       loading.hidden = true; go.disabled = false;
