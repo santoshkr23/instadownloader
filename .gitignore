@@ -4,3 +4,4 @@ __pycache__/
 .env
 cookies.txt
 dist/
+data/secrets/

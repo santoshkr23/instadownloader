@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import time
 from collections import defaultdict, deque
@@ -16,12 +17,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import admin, config, downloader, pages
+from . import admin, config, downloader, pages, secrets_store
 from .gate import SITE_PASSWORD, PasswordGate
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
-RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 
@@ -57,7 +57,7 @@ def _check_rate(request: Request):
     q = _hits[ip]
     while q and now - q[0] > 60:
         q.popleft()
-    if len(q) >= RATE_LIMIT:
+    if len(q) >= config.downloads()["rate_limit_per_min"]:
         raise HTTPException(429, "Too many requests. Please wait a minute and try again.")
     q.append(now)
 
@@ -85,6 +85,7 @@ def _page_ctx(request: Request, key: str | None):
 @app.on_event("startup")
 def _startup():
     config.start_background()
+    downloader.start_cleanup_thread()
 
 
 @app.on_event("shutdown")
@@ -121,12 +122,53 @@ def health():
         "version": (os.getenv("RENDER_GIT_COMMIT") or "local")[:7],  # matches the GitHub commit Render is running
         "yt_dlp": yt_dlp.version.__version__,
         "deno": shutil.which("deno") is not None,
-        "cookies": os.path.exists(downloader.COOKIES_FILE),
+        "cookies": secrets_store.cookies_path() is not None,
+        "proxy": bool(secrets_store.get_proxy()["url"]),
         "settings_saved_to_github": config.github_enabled(),
     }
 
 
 # ---------------- API ----------------
+class JobRequest(BaseModel):
+    url: str
+    option: str = "best"
+    item: int = 0
+
+
+_OPTION_RE = re.compile(r"^(best|audio|image|h\d{3,4}|mp3_(128|192|320))$")
+
+
+@app.post("/api/jobs")
+async def api_job_start(body: JobRequest, request: Request):
+    """Start a download in the background; the page then polls /api/jobs/{id} for progress."""
+    _check_rate(request)
+    _validate(body.url)
+    if not _OPTION_RE.match(body.option) or not 0 <= body.item <= 50:
+        raise HTTPException(400, "Invalid request.")
+    try:
+        job = downloader.start_job(body.url.strip(), body.option, body.item, _client_ip(request))
+    except downloader.DownloadError as e:
+        raise HTTPException(429, str(e))
+    return job.public()
+
+
+@app.get("/api/jobs/{job_id}")
+def api_job_status(job_id: str):
+    job = downloader.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "This download has expired. Please start it again.")
+    return job.public()
+
+
+@app.get("/api/jobs/{job_id}/file")
+def api_job_file(job_id: str):
+    job = downloader.get_job(job_id)
+    if not job or job.status != "done" or not job.file or not os.path.exists(job.file.path):
+        raise HTTPException(404, "This download has expired. Please start it again.")
+    # the file stays for 30 minutes so a slow or repeated save still works
+    return FileResponse(job.file.path, filename=job.file.filename, media_type="application/octet-stream")
+
+
 class InfoRequest(BaseModel):
     url: str
 

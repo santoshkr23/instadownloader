@@ -127,6 +127,17 @@ def _url(v, field: str, required=False) -> str:
     return s
 
 
+def _color(v) -> str:
+    c = _text(v, 7, "Color")
+    if not _COLOR_RE.match(c):
+        raise ConfigError("Color must look like #D92D20.")
+    return c.upper()
+
+
+def downloads() -> dict:
+    return get().get("downloads") or dict(DOWNLOAD_DEFAULTS)
+
+
 def clean_platform(p: dict) -> dict:
     key = _text(p.get("key"), 31, "Key", True).lower()
     if not _KEY_RE.match(key):
@@ -209,6 +220,29 @@ def parse_menu_links(text: str) -> list[dict]:
     return links
 
 
+DOWNLOAD_DEFAULTS = {
+    "max_filesize_mb": int(os.getenv("MAX_FILESIZE_MB", "500")),
+    "max_concurrent": int(os.getenv("MAX_CONCURRENT_DOWNLOADS", "3")),
+    "rate_limit_per_min": int(os.getenv("RATE_LIMIT_PER_MIN", "20")),
+}
+DOWNLOAD_LIMITS = {"max_filesize_mb": (10, 4000), "max_concurrent": (1, 8), "rate_limit_per_min": (1, 600)}
+BRAND_DEFAULT = "#D92D20"  # PDFTool4U red
+
+
+def clean_downloads(d: dict | None) -> dict:
+    out = {}
+    for k, default in DOWNLOAD_DEFAULTS.items():
+        try:
+            v = int((d or {}).get(k, default))
+        except (TypeError, ValueError):
+            raise ConfigError(f"{k.replace('_', ' ').capitalize()} must be a number.")
+        lo, hi = DOWNLOAD_LIMITS[k]
+        if not lo <= v <= hi:
+            raise ConfigError(f"{k.replace('_', ' ').capitalize()} must be between {lo} and {hi}.")
+        out[k] = v
+    return out
+
+
 def clean_config(cfg: dict) -> dict:
     links = cfg.get("menu_links", [{"label": "PDF Tools", "url": "https://pdftool4u.com"}])
     if len(links) > 6:
@@ -216,6 +250,8 @@ def clean_config(cfg: dict) -> dict:
     out = {
         "site_name": _text(cfg.get("site_name") or "SaveIt", 40, "Site name", True),
         "menu_links": [clean_menu_link(m) for m in links],
+        "brand_color": _color(cfg.get("brand_color") or BRAND_DEFAULT),
+        "downloads": clean_downloads(cfg.get("downloads")),
         "platforms": [clean_platform(p) for p in cfg.get("platforms", [])],
         "offers": [clean_offer(o) for o in cfg.get("offers", [])],
     }

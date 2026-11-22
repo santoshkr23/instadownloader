@@ -1,11 +1,17 @@
 {
   "site_name": "SaveIt",
+  "brand_color": "#D92D20",
   "menu_links": [
     {
       "label": "PDF Tools",
       "url": "https://pdftool4u.com"
     }
   ],
+  "downloads": {
+    "max_filesize_mb": 500,
+    "max_concurrent": 3,
+    "rate_limit_per_min": 20
+  },
   "platforms": [
     {
       "key": "instagram",

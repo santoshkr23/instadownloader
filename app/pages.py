@@ -45,6 +45,7 @@ def page_context(key: str | None, *, base: str, api_base: str, site_url: str) ->
         "base": base,
         "api_base": api_base,
         "site_name": site_name,
+        "brand": cfg.get("brand_color") or config.BRAND_DEFAULT,
         "menu_links": cfg.get("menu_links", []),
         "site_url": site_url,
         "platforms": plats,

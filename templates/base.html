@@ -10,12 +10,12 @@
   <meta property="og:description" content="{{ page_description }}">
   <meta property="og:url" content="{{ canonical }}">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="{{ p.color if p else '#7C3AED' }}">
+  <meta name="theme-color" content="{{ brand }}">
   <link rel="icon" href="{{ base }}/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="{{ base }}/static/style.css">
-  <style>:root{--accent: {{ p.color if p else '#7C3AED' }};}</style>
+  <style>:root{--accent: {{ brand }};}</style>
   {% block head %}{% endblock %}
 </head>
 <body>

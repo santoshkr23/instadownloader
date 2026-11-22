@@ -1,4 +1,5 @@
 """Password-protected admin panel at /admin: platforms, affiliate offers, site settings."""
+import asyncio
 import hmac
 import logging
 import os
@@ -10,7 +11,9 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from . import config
+from fastapi.concurrency import run_in_threadpool
+
+from . import config, downloader, secrets_store
 
 log = logging.getLogger("admin")
 
@@ -61,6 +64,8 @@ def _render(request: Request, name: str, **ctx):
         flash=request.session.pop("flash", None),
         site_name=config.get()["site_name"],
         github=config.github_enabled(),
+        # only Render's free plan wipes the disk; on a VPS settings are kept without GitHub
+        needs_github=bool(os.getenv("RENDER")) and not config.github_enabled(),
         placements=config.PLACEMENTS,
         nav=name.split("/")[-1].split("_")[0].replace(".html", ""),
     )
@@ -138,6 +143,7 @@ def dashboard(request: Request):
         n_offers=sum(1 for o in cfg["offers"] if o["enabled"]),
         last_sync=config.last_sync(),
         has_secret=bool(os.getenv("SECRET_KEY")),
+        downloads_now=downloader.active_jobs(),
     )
 
 
@@ -287,10 +293,22 @@ async def offer_action(request: Request, oid: str, action: str):
 
 
 # ---------------------------------------------------------------- settings
+TEST_LINKS = {
+    "youtube": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "instagram": "https://www.instagram.com/reel/C2eY6-5r9Xh/",
+}
+
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request):
     _require_login(request)
-    return _render(request, "settings.html", cfg=config.get())
+    return _render(
+        request, "settings.html", cfg=config.get(),
+        cookies=secrets_store.cookies_info(),
+        proxy=secrets_store.get_proxy(), proxy_masked=secrets_store.masked_proxy(),
+        proxy_scopes=secrets_store.PROXY_SCOPES,
+        test=request.session.pop("test_result", None),
+    )
 
 
 @router.post("/settings")
@@ -298,9 +316,86 @@ async def settings_save(request: Request):
     form = await _form(request)
     cfg = config.snapshot()
     cfg["site_name"] = form.get("site_name", "")
+    cfg["brand_color"] = form.get("brand_color", "")
+    cfg["downloads"] = {
+        "max_filesize_mb": form.get("max_filesize_mb", ""),
+        "max_concurrent": form.get("max_concurrent", ""),
+        "rate_limit_per_min": form.get("rate_limit_per_min", ""),
+    }
     try:
         cfg["menu_links"] = config.parse_menu_links(form.get("menu_links", ""))
     except config.ConfigError as e:
         _flash(request, str(e), ok=False)
         return _go("/settings")
     return _save(request, cfg, "update site settings", "/settings") or _go("/settings")
+
+
+@router.post("/settings/cookies")
+async def cookies_save(request: Request):
+    form = await _form(request)
+    text = str(form.get("cookies_text") or "")
+    upload = form.get("cookies_file")
+    if upload is not None and getattr(upload, "filename", ""):
+        raw = await upload.read(secrets_store.MAX_COOKIES_BYTES + 1)
+        text = raw.decode("utf-8", errors="ignore")
+    if not text.strip():
+        _flash(request, "Choose a cookies.txt file or paste its text first.", ok=False)
+        return _go("/settings#youtube")
+    try:
+        info = secrets_store.save_cookies(text)
+    except secrets_store.SecretError as e:
+        _flash(request, str(e), ok=False)
+        return _go("/settings#youtube")
+    sites = ", ".join(info.get("sites") or []) or "unknown sites"
+    _flash(request, f"Cookies saved ({sites}). They're used from the next download. Use “Test YouTube” to check.")
+    return _go("/settings#youtube")
+
+
+@router.post("/settings/cookies/delete")
+async def cookies_delete(request: Request):
+    await _form(request)
+    secrets_store.delete_cookies()
+    left = secrets_store.cookies_info()
+    _flash(request, "Cookies removed." + (" (A cookies file mounted on the server is still used.)" if left["present"] else ""))
+    return _go("/settings#youtube")
+
+
+@router.post("/settings/proxy")
+async def proxy_save(request: Request):
+    form = await _form(request)
+    url = str(form.get("proxy_url") or "").strip() or secrets_store.get_proxy()["url"]  # blank keeps the current one
+    try:
+        secrets_store.save_proxy(url, str(form.get("proxy_scope") or "youtube"))
+    except secrets_store.SecretError as e:
+        _flash(request, str(e), ok=False)
+        return _go("/settings#youtube")
+    _flash(request, "Proxy saved." if url else "No proxy set.")
+    return _go("/settings#youtube")
+
+
+@router.post("/settings/proxy/delete")
+async def proxy_delete(request: Request):
+    await _form(request)
+    secrets_store.save_proxy("", "youtube")
+    _flash(request, "Proxy removed.")
+    return _go("/settings#youtube")
+
+
+@router.post("/settings/test")
+async def settings_test(request: Request):
+    form = await _form(request)
+    which = form.get("platform", "youtube")
+    url = TEST_LINKS.get(which, TEST_LINKS["youtube"])
+    name = {"youtube": "YouTube", "instagram": "Instagram"}.get(which, "YouTube")
+    started = time.time()
+    try:
+        info = await asyncio.wait_for(run_in_threadpool(downloader.get_info, url), timeout=60)
+        opts = info["items"][0]["options"] if info.get("items") else []
+        best = next((o["label"] for o in opts if o.get("kind") == "video"), "no video options")
+        result = {"ok": True, "message": f"{name} works: “{info.get('title', '')[:60]}” — best quality {best} ({time.time() - started:.0f}s)."}
+    except asyncio.TimeoutError:
+        result = {"ok": False, "message": f"{name} test timed out after 60 seconds."}
+    except downloader.DownloadError as e:
+        result = {"ok": False, "message": f"{name} failed: {e}"}
+    request.session["test_result"] = result
+    return _go("/settings#youtube")

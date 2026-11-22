@@ -39,11 +39,17 @@ docker compose restart                # restart
 nano .env && docker compose up -d     # change a password or setting
 ```
 
+## Admin panel → Settings
+
+- **Brand colour** (PDFTool4U red by default), site name, menu links
+- **Download limits**: largest file, downloads at once, requests per visitor
+- **YouTube access**: upload a `cookies.txt` (spare account) or add a residential proxy, then press **Test YouTube**
+
 ## Where things are kept
 
 - `/opt/instadownloader/.env` — passwords and settings
 - `/opt/instadownloader-data/` — admin-panel settings (`config.json`) and offer clicks (`stats.json`). Back this folder up now and then.
-- `/opt/instadownloader-secrets/cookies.txt` — optional; only if you decide to use a cookies file for YouTube or Instagram. Then `docker compose restart`.
+- `/opt/instadownloader-data/secrets/` — the cookies file and proxy you set in Admin → Settings (only on the server, never in GitHub).
 
 ## Going public later
 

@@ -2,17 +2,86 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
 <h1>Settings</h1>
-<p class="sub">Site-wide options.</p>
+<p class="sub">Look of the site, download limits, and YouTube access.</p>
+
 <form method="post" action="/admin/settings" class="edit card">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <label>Site name <small>shown in the logo, page titles and footer</small><input type="text" name="site_name" value="{{ cfg.site_name }}" required maxlength="40"></label>
-  <label>Extra menu links <small>shown in the site's top menu and footer, opening in a new tab. One per line: Name | https://address (up to 6)</small>
+  <h2 class="sec">Site</h2>
+  <div class="row2">
+    <label>Site name <small>logo, page titles and footer</small><input type="text" name="site_name" value="{{ cfg.site_name }}" required maxlength="40"></label>
+    <label>Brand colour <small>buttons, logo and progress bars</small>
+      <span class="color-row"><input type="color" value="{{ cfg.brand_color }}" oninput="this.nextElementSibling.value=this.value.toUpperCase()"><input type="text" name="brand_color" value="{{ cfg.brand_color }}" pattern="#[0-9a-fA-F]{6}" maxlength="7" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))this.previousElementSibling.value=this.value"></span>
+      <button type="button" class="link-btn" onclick="const t=this.parentElement.querySelectorAll('input');t[0].value='#d92d20';t[1].value='#D92D20'">Use PDFTool4U red</button>
+    </label>
+  </div>
+  <label>Extra menu links <small>top menu and footer, open in a new tab. One per line: Name | https://address (up to 6)</small>
     <textarea name="menu_links" placeholder="PDF Tools | https://pdftool4u.com">{% for m in cfg.menu_links %}{{ m.label }} | {{ m.url }}
 {% endfor %}</textarea></label>
+
+  <h2 class="sec">Downloads</h2>
+  <div class="row3">
+    <label>Largest file (MB) <small>bigger videos are refused</small><input type="number" name="max_filesize_mb" value="{{ cfg.downloads.max_filesize_mb }}" min="10" max="4000" required></label>
+    <label>Downloads at once <small>others wait in line</small><input type="number" name="max_concurrent" value="{{ cfg.downloads.max_concurrent }}" min="1" max="8" required></label>
+    <label>Requests per visitor / minute <small>stops abuse</small><input type="number" name="rate_limit_per_min" value="{{ cfg.downloads.rate_limit_per_min }}" min="1" max="600" required></label>
+  </div>
+  <p class="muted" style="margin:-4px 0 0">Your VPS (KVM 2) handles about 3 downloads at once comfortably next to the PDF site.</p>
   <div class="form-actions"><button class="primary">Save</button></div>
 </form>
-<div class="card" style="margin-top:18px;max-width:720px">
+
+<div class="card edit" id="youtube" style="margin-top:18px">
+  <h2 class="sec">YouTube access</h2>
+  <p class="muted" style="margin:0">YouTube often blocks downloads from servers (“confirm you're not a bot”). A <b>cookies.txt</b> from a logged-in account, or a <b>residential proxy</b>, gets around it. Use a <b>spare Google account</b>, never your main one — YouTube can block accounts used this way.</p>
+
+  {% if test %}<div class="flash {{ 'ok' if test.ok else 'bad' }}" style="margin:0">{{ test.message }}</div>{% endif %}
+  <div class="form-actions">
+    <form method="post" action="/admin/settings/test"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="platform" value="youtube"><button onclick="this.textContent='Testing… (up to 60s)'">Test YouTube</button></form>
+    <form method="post" action="/admin/settings/test"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="platform" value="instagram"><button onclick="this.textContent='Testing… (up to 60s)'">Test Instagram</button></form>
+  </div>
+
+  <h3 class="sub-sec">1. Cookies file</h3>
+  {% if cookies.present %}
+    <div class="status ok">✓ Cookies in use{% if cookies.sites %} for {{ cookies.sites|join(', ') }}{% endif %} · updated {{ cookies.updated }}{% if not cookies.from_admin %} · from a file mounted on the server{% endif %}
+      {% if not cookies.has_youtube %}<br><b>No YouTube cookies in this file</b> — export them while on youtube.com.{% endif %}</div>
+  {% else %}
+    <div class="status">No cookies file — downloads run without a login.</div>
+  {% endif %}
+  <form method="post" action="/admin/settings/cookies" enctype="multipart/form-data" class="edit" style="gap:10px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Upload cookies.txt<input type="file" name="cookies_file" accept=".txt,text/plain"></label>
+    <label>…or paste its text<textarea name="cookies_text" placeholder="# Netscape HTTP Cookie File&#10;.youtube.com	TRUE	/	TRUE	…" style="min-height:70px;font-family:monospace;font-size:.8rem"></textarea></label>
+    <details class="muted"><summary>How to get cookies.txt</summary>
+      <ol style="margin:6px 0 0;padding-left:18px">
+        <li>On a computer, install the Chrome extension <b>Get cookies.txt LOCALLY</b> and allow it in Incognito.</li>
+        <li>Open an Incognito window, sign in to YouTube with a spare account.</li>
+        <li>Go to <b>youtube.com/robots.txt</b>, click the extension → <b>Export</b>.</li>
+        <li>Close the Incognito window (don't sign out), then upload the file here.</li>
+      </ol></details>
+    <div class="form-actions"><button class="primary">Save cookies</button></div>
+  </form>
+  {% if cookies.present and cookies.from_admin %}
+  <form method="post" action="/admin/settings/cookies/delete" onsubmit="return confirm('Remove the cookies file?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Remove cookies</button></form>
+  {% endif %}
+
+  <h3 class="sub-sec">2. Residential proxy (optional, paid)</h3>
+  {% if proxy.url %}<div class="status ok">✓ Proxy in use for {{ proxy_scopes[proxy.scope] }}: <code>{{ proxy_masked }}</code></div>
+  {% else %}<div class="status">No proxy — the server's own address is used.</div>{% endif %}
+  <form method="post" action="/admin/settings/proxy" class="edit" style="gap:10px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row2">
+      <label>Proxy address <small>from your proxy provider{% if proxy.url %}; leave blank to keep the current one{% endif %}</small>
+        <input type="text" name="proxy_url" placeholder="http://user:password@gate.provider.com:7000" autocomplete="off"></label>
+      <label>Use it for<select name="proxy_scope">{% for k, v in proxy_scopes.items() %}<option value="{{ k }}" {{ 'selected' if proxy.scope == k }}>{{ v }}</option>{% endfor %}</select></label>
+    </div>
+    <div class="form-actions"><button class="primary">Save proxy</button></div>
+  </form>
+  {% if proxy.url %}
+  <form method="post" action="/admin/settings/proxy/delete" onsubmit="return confirm('Remove the proxy?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Remove proxy</button></form>
+  {% endif %}
+  <p class="muted" style="margin:0">Cookies and the proxy are stored only on this server (never in GitHub).</p>
+</div>
+
+<div class="card" style="margin-top:18px;max-width:760px">
   <b>How saving works</b>
-  <p class="muted" style="margin:6px 0 0">Changes are live on this server straight away. {% if github %}They're also saved to <code>data/config.json</code> in GitHub, which rebuilds the github.io site in about 2 minutes.{% else %}Add <code>GITHUB_TOKEN</code> in Render so they're saved to GitHub and survive restarts.{% endif %} The admin password is set with <code>ADMIN_PASSWORD</code> in Render → Environment.</p>
+  <p class="muted" style="margin:6px 0 0">Changes are live straight away and kept on the server across restarts and updates. The admin password is set in the server's <code>.env</code> file (<code>ADMIN_PASSWORD</code>).</p>
 </div>
 {% endblock %}

@@ -8,7 +8,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <style>
-    :root { --bg:#f6f5fa; --surface:#fff; --text:#17141f; --muted:#6b6680; --border:#e6e2ef; --soft:#f1eef8; --accent:#7C3AED; --ok:#047857; --okbg:#e7f7ef; --bad:#b4233c; --badbg:#fdebee; --warnbg:#fff6e0; --warn:#8a5a00; }
+    :root { --bg:#f6f5fa; --surface:#fff; --text:#17141f; --muted:#6b6680; --border:#e6e2ef; --soft:#f1eef8; --accent:#D92D20; --ok:#047857; --okbg:#e7f7ef; --bad:#b4233c; --badbg:#fdebee; --warnbg:#fff6e0; --warn:#8a5a00; }
     @media (prefers-color-scheme: dark) { :root { --bg:#0f0d16; --surface:#18151f; --text:#f1eff8; --muted:#a39db8; --border:#2a2536; --soft:#211d2c; --okbg:#0f2a20; --ok:#6ee7b7; --badbg:#3b0d1a; --bad:#fda4af; --warnbg:#2e2410; --warn:#fcd34d; } }
     * { box-sizing: border-box; }
     body { margin:0; font-family:"Plus Jakarta Sans",system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; font-size:15px; }
@@ -57,7 +57,7 @@
     form.edit { display:grid; gap:16px; max-width:720px; }
     label { display:grid; gap:6px; font-weight:700; font-size:.9rem; }
     label small { font-weight:500; color:var(--muted); }
-    input[type=text], input[type=url], input[type=password], textarea, select { font:inherit; font-weight:500; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); width:100%; }
+    input[type=text], input[type=url], input[type=password], input[type=number], textarea, select { font:inherit; font-weight:500; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); width:100%; }
     input:focus, textarea:focus, select:focus { outline:2px solid color-mix(in srgb, var(--accent) 40%, transparent); border-color:var(--accent); }
     textarea { min-height:80px; resize:vertical; }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
@@ -66,6 +66,15 @@
     fieldset { border:1px solid var(--border); border-radius:12px; padding:12px 14px; display:grid; gap:8px; }
     legend { font-weight:700; font-size:.9rem; padding:0 6px; }
     .form-actions { display:flex; gap:10px; }
+    h2.sec { font-size:1.05rem; margin:4px 0 0; }
+    h3.sub-sec { font-size:.95rem; margin:10px 0 0; }
+    .row3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .color-row { display:flex; gap:8px; align-items:center; }
+    .color-row input[type=color] { width:46px; height:42px; padding:2px; border:1px solid var(--border); border-radius:10px; background:var(--bg); }
+    .link-btn { border:0; background:none; color:var(--accent); padding:0; font-size:.82rem; justify-self:start; }
+    .status { padding:10px 14px; border-radius:10px; background:var(--soft); color:var(--muted); font-size:.9rem; }
+    .status.ok { background:var(--okbg); color:var(--ok); }
+    .card.edit { max-width:760px; }
     .preview { border:1px dashed var(--border); border-radius:12px; padding:14px; }
     @media (max-width: 800px) {
       .shell { grid-template-columns:1fr; }
@@ -75,7 +84,7 @@
       .side form button { width:auto; }
       main { padding:20px 16px 48px; }
       .grid4 { grid-template-columns:repeat(2,1fr); }
-      .row2 { grid-template-columns:1fr; }
+      .row2, .row3 { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -94,7 +103,7 @@
   </aside>
   <main>
     {% if flash %}<div class="flash {{ 'ok' if flash.ok else 'bad' }}">{{ flash.message }}</div>{% endif %}
-    {% if not github %}
+    {% if needs_github %}
     <div class="warn"><b>Changes won't survive a restart yet.</b>Add a <code>GITHUB_TOKEN</code> in Render → Environment so changes save to GitHub and update the github.io site.</div>
     {% endif %}
     {% block content %}{% endblock %}

@@ -132,7 +132,10 @@
       const dur = fmtDur(it.duration);
       const link = (o) => {
         const href = `${API}/api/download?url=${encodeURIComponent(url)}&option=${encodeURIComponent(o.id)}&item=${it.index}`;
-        return `<a class="opt" href="${href}" data-dl><span>${esc(o.label)}</span><span class="dl">Download</span></a>`;
+        return `<a class="opt" href="${href}" data-dl data-url="${esc(url)}" data-opt="${esc(o.id)}" data-item="${it.index}">
+                  <span class="opt-label">${esc(o.label)}</span><span class="dl">Download</span>
+                  <span class="opt-progress" hidden><span class="opt-bar"><i></i></span><span class="opt-status"></span></span>
+                </a>`;
       };
       const vids = it.options.filter((o) => o.kind !== "audio");
       const auds = it.options.filter((o) => o.kind === "audio");
@@ -161,32 +164,64 @@
     result.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // Download via fetch so we can show errors instead of a raw JSON page
+  // ---- downloads: start a job on the server, show its progress, then save the file ----
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const getJSON = async (url, opts) => {
+    const res = await fetch(url, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Download failed. Please try again.");
+    return data;
+  };
+  const saveFile = (href, name) => {
+    const link = document.createElement("a");
+    link.href = href;
+    if (name) link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   result.addEventListener("click", async (e) => {
     const a = e.target.closest("a[data-dl]");
     if (!a) return;
     e.preventDefault();
+    if (a.classList.contains("busy")) return;
+    if (a.dataset.file) { saveFile(a.dataset.file, a.dataset.filename); return; }   // already done: save again
+
     clearError();
-    a.classList.add("busy");
+    const dl = a.querySelector(".dl"), box = a.querySelector(".opt-progress");
+    const bar = a.querySelector(".opt-bar i"), status = a.querySelector(".opt-status");
+    const show = (job) => {
+      const pct = Math.round(job.percent || 0);
+      bar.style.width = pct + "%";
+      dl.textContent = pct + "%";
+      status.textContent = [job.stage, job.speed, job.eta].filter(Boolean).join(" · ");
+    };
+    a.classList.add("busy"); box.hidden = false; show({ percent: 0, stage: "Starting…" });
     try {
-      const res = await fetch(a.href);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Download failed. Please try again.");
+      let job = await getJSON(`${API}/api/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: a.dataset.url, option: a.dataset.opt, item: Number(a.dataset.item) || 0 }),
+      });
+      let misses = 0;
+      while (job.status !== "done" && job.status !== "error") {
+        show(job);
+        await sleep(800);
+        try { job = await getJSON(`${API}/api/jobs/${encodeURIComponent(job.id)}`); misses = 0; }
+        catch (err) { if (++misses > 5 || err.message.includes("expired")) throw err; }   // ride out a blip
       }
-      const blob = await res.blob();
-      const cd = res.headers.get("content-disposition") || "";
-      const m = cd.match(/filename\*=utf-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
-      const name = m ? decodeURIComponent(m[1]) : "download";
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+      if (job.status === "error") throw new Error(job.error || "Download failed. Please try again.");
+      show({ percent: 100, stage: "Saving to your device…" });
+      const fileUrl = `${API}/api/jobs/${encodeURIComponent(job.id)}/file`;
+      saveFile(fileUrl, job.filename);
+      a.dataset.file = fileUrl; a.dataset.filename = job.filename || "";
+      a.classList.add("done");
+      dl.textContent = "Saved ✓";
+      status.textContent = (job.size ? job.size + " · " : "") + "Tap again to save another copy";
     } catch (err) {
-      showError(err.message);
+      box.hidden = true; dl.textContent = "Download";
+      showError(err instanceof TypeError ? "Can't reach the download server right now. Please try again in a minute." : err.message);
       errBox.scrollIntoView({ behavior: "smooth", block: "center" });
     } finally {
       a.classList.remove("busy");
