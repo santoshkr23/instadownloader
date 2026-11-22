@@ -26,6 +26,7 @@
         {% for key, pl in platforms.items() %}
         <a href="{{ base }}/{{ pl.slug }}/" class="{{ 'active' if current == key }}" style="--c: {{ pl.color }}">{{ pl.name }}</a>
         {% endfor %}
+        {% for m in menu_links %}<a href="{{ m.url }}" class="ext" target="_blank" rel="noopener">{{ m.label }} ↗</a>{% endfor %}
       </nav>
     </div>
   </header>
@@ -36,6 +37,7 @@
     <div class="wrap">
       <div class="footer-links">
         {% for key, pl in platforms.items() %}<a href="{{ base }}/{{ pl.slug }}/">{{ pl.name }} downloader</a>{% endfor %}
+        {% for m in menu_links %}<a href="{{ m.url }}" target="_blank" rel="noopener">{{ m.label }} ↗</a>{% endfor %}
       </div>
       <p class="disclaimer">{{ site_name }} is not affiliated with {{ platforms.values()|map(attribute='name')|join(', ') }}. Only download content you own or have permission to use, and respect each platform's terms and creators' copyright. Some links on this site are affiliate links: we may earn a commission if you buy through them, at no extra cost to you.</p>
     </div>

@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon, offer_section %}
-{% set offers_mode = p and p.mode == 'offers' %}
 {% block head %}
 {% if not offers_mode %}
 <script type="application/ld+json">
@@ -87,7 +86,7 @@
     <a class="pcard" href="{{ base }}/{{ pl.slug }}/" style="--c: {{ pl.color }}">
       {{ icon(key, pl, base, icons, 32) }}
       <b>{{ pl.name }}</b>
-      <span>{% if pl.mode == 'offers' %}Coming soon{% else %}{{ pl.what[0] | upper }}{{ pl.what[1:] }}{% endif %}</span>
+      <span>{% if modes[key] == 'offers' %}Coming soon{% else %}{{ pl.what[0] | upper }}{{ pl.what[1:] }}{% endif %}</span>
     </a>
     {% endfor %}
   </div>

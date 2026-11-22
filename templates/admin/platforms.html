@@ -4,19 +4,19 @@
 <div class="head">
   <div>
     <h1>Platforms</h1>
-    <p class="sub">Each platform gets its own page. <b>Download</b> mode shows the downloader; <b>Offers</b> mode shows your affiliate offers instead.</p>
+    <p class="sub">Each platform gets its own page. <b>Downloader</b> pages show the download box. <b>Offers page</b> hides the download box and shows your affiliate offers instead (use it for a platform that isn't working, like YouTube). An offers page with no live offers shows the download box until you add one.</p>
   </div>
   <a class="btn primary" href="/admin/platforms/new">+ Add platform</a>
 </div>
 <div class="card table-wrap">
   <table>
-    <thead><tr><th>Platform</th><th>Page</th><th>Mode</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Platform</th><th>Page</th><th>Page type</th><th>On site</th><th></th></tr></thead>
     <tbody>
     {% for p in items %}
       <tr>
         <td><span class="dot" style="background: {{ p.color }}"></span><b>{{ p.name }}</b><div class="muted">{{ p.hosts|join(', ') }}</div></td>
         <td class="muted">/{{ p.slug }}/</td>
-        <td><span class="pill {{ 'offers' if p.mode == 'offers' else 'on' }}">{{ 'Offers' if p.mode == 'offers' else 'Download' }}</span></td>
+        <td>{% if p.mode == 'offers' %}<span class="pill offers">Offers page</span>{% if not has_blocked_offers %}<div class="muted">No offers yet, so visitors see the downloader</div>{% endif %}{% else %}<span class="pill on">Downloader</span>{% endif %}</td>
         <td><span class="pill {{ 'on' if p.enabled else 'off' }}">{{ 'Live' if p.enabled else 'Hidden' }}</span></td>
         <td>
           <div class="actions">
@@ -24,8 +24,8 @@
             <form method="post" action="/admin/platforms/{{ p.key }}/{{ a }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="{{ cls }}" title="Move {{ a }}">{{ label }}</button></form>
             {% endfor %}
             <a class="btn" href="/admin/platforms/{{ p.key }}">Edit</a>
-            <form method="post" action="/admin/platforms/{{ p.key }}/mode"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ 'Use download' if p.mode == 'offers' else 'Show offers' }}</button></form>
-            <form method="post" action="/admin/platforms/{{ p.key }}/toggle"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ 'Hide' if p.enabled else 'Show' }}</button></form>
+            <form method="post" action="/admin/platforms/{{ p.key }}/mode"><input type="hidden" name="csrf" value="{{ csrf }}"><button title="{{ 'Show the download box on this page' if p.mode == 'offers' else 'Hide the download box and show affiliate offers instead' }}">{{ 'Switch to downloader' if p.mode == 'offers' else 'Switch to offers page' }}</button></form>
+            <form method="post" action="/admin/platforms/{{ p.key }}/toggle"><input type="hidden" name="csrf" value="{{ csrf }}"><button title="{{ 'Remove this platform from the site' if p.enabled else 'Put this platform back on the site' }}">{{ 'Hide from site' if p.enabled else 'Show on site' }}</button></form>
             <form method="post" action="/admin/platforms/{{ p.key }}/delete" onsubmit="return confirm('Delete {{ p.name }}? Its page will disappear.')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Delete</button></form>
           </div>
         </td>

@@ -72,7 +72,7 @@ def _validate(url: str) -> str:
     p = config.detect_any(url)
     if p and p["enabled"]:
         raise HTTPException(400, p["notice"] or f"{p['name']} downloads aren't available right now.")
-    names = [x["name"] for x in config.platforms() if x["mode"] == "download"]
+    names = [x["name"] for x in config.platforms() if config.effective_mode(x) == "download"]
     raise HTTPException(400, "Paste a link from " + (", ".join(names) or "a supported site") + ".")
 
 

@@ -17,15 +17,15 @@
     <label>Brand color<input type="text" name="color" value="{{ item.color or '#7C3AED' }}" placeholder="#000000" pattern="#[0-9a-fA-F]{6}"></label>
   </div>
   <div class="row2">
-    <label>Mode
+    <label>Page type
       <select name="mode">
-        <option value="download" {{ 'selected' if item.mode != 'offers' }}>Download — show the downloader</option>
-        <option value="offers" {{ 'selected' if item.mode == 'offers' }}>Offers — show affiliate offers instead</option>
+        <option value="download" {{ 'selected' if item.mode != 'offers' }}>Downloader — show the download box</option>
+        <option value="offers" {{ 'selected' if item.mode == 'offers' }}>Offers page — hide the download box, show affiliate offers</option>
       </select>
     </label>
     <label class="check" style="align-self:end;padding-bottom:10px"><input type="checkbox" name="enabled" {{ 'checked' if item.enabled }}> Live on the site</label>
   </div>
-  <label>Notice in offers mode <small>shown at the top of the page and when someone pastes a link</small>
+  <label>Notice on the offers page <small>shown at the top of the page and when someone pastes a link</small>
     <input type="text" name="notice" value="{{ item.notice or '' }}" placeholder="TikTok downloads aren't available right now. Here are some tools you might like instead." maxlength="300"></label>
   <fieldset>
     <legend>Page text (for Google)</legend>

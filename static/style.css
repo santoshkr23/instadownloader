@@ -28,6 +28,8 @@ h2 { font-size: 1.4rem; margin: 48px 0 16px; letter-spacing: -.01em; }
 .nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .nav a { text-decoration: none; font-size: .88rem; font-weight: 600; color: var(--muted); padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
 .nav a:hover, .nav a.active { color: var(--c); background: var(--soft); }
+.nav a.ext { color: var(--text); border: 1px solid var(--border); margin-left: 6px; }
+.nav a.ext:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
 @media (max-width: 720px) { .nav { display: none; } }
 
 /* hero */

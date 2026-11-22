@@ -46,7 +46,7 @@ PLACEMENTS = {
     "home": "Home page",
     "pages": "Every downloader page",
     "after_download": "Below download buttons",
-    "blocked": "Platforms in offers mode (e.g. YouTube)",
+    "blocked": "Offers pages (platforms switched to offers, e.g. YouTube)",
 }
 
 _lock = threading.RLock()
@@ -192,9 +192,30 @@ def clean_offer(o: dict) -> dict:
     }
 
 
+def clean_menu_link(m: dict) -> dict:
+    return {"label": _text(m.get("label"), 30, "Menu link name", True), "url": _url(m.get("url"), "Menu link address", True)}
+
+
+def parse_menu_links(text: str) -> list[dict]:
+    """Admin textarea: one link per line, "Name | https://address"."""
+    links = []
+    for line in (text or "").splitlines():
+        if not line.strip():
+            continue
+        label, sep, url = line.partition("|")
+        if not sep:
+            raise ConfigError(f"Menu link line '{line.strip()[:40]}' needs a | between the name and the address.")
+        links.append({"label": label.strip(), "url": url.strip()})
+    return links
+
+
 def clean_config(cfg: dict) -> dict:
+    links = cfg.get("menu_links", [{"label": "PDF Tools", "url": "https://pdftool4u.com"}])
+    if len(links) > 6:
+        raise ConfigError("At most 6 menu links.")
     out = {
         "site_name": _text(cfg.get("site_name") or "SaveIt", 40, "Site name", True),
+        "menu_links": [clean_menu_link(m) for m in links],
         "platforms": [clean_platform(p) for p in cfg.get("platforms", [])],
         "offers": [clean_offer(o) for o in cfg.get("offers", [])],
     }
@@ -302,10 +323,16 @@ def offers_for(placement: str) -> list[dict]:
     return [o for o in get()["offers"] if o["enabled"] and placement in o["placements"]]
 
 
+def effective_mode(p: dict) -> str:
+    """What visitors get. Offers mode only shows when there's at least one live offer
+    for it; with none, the page falls back to the downloader instead of an empty page."""
+    return "offers" if p["mode"] == "offers" and offers_for("blocked") else "download"
+
+
 def detect_platform(url: str) -> str | None:
-    """Platform key for a URL from an enabled, download-mode platform (else None)."""
+    """Platform key for a URL from an enabled platform that visitors can download from (else None)."""
     p = detect_any(url)
-    return p["key"] if p and p["enabled"] and p["mode"] == "download" else None
+    return p["key"] if p and p["enabled"] and effective_mode(p) == "download" else None
 
 
 def detect_any(url: str) -> dict | None:

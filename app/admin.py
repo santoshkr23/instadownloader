@@ -145,7 +145,8 @@ def dashboard(request: Request):
 @router.get("/platforms", response_class=HTMLResponse)
 def platforms_list(request: Request):
     _require_login(request)
-    return _render(request, "platforms.html", items=config.get()["platforms"])
+    return _render(request, "platforms.html", items=config.get()["platforms"],
+                   has_blocked_offers=bool(config.offers_for("blocked")))
 
 
 @router.get("/platforms/new", response_class=HTMLResponse)
@@ -297,4 +298,9 @@ async def settings_save(request: Request):
     form = await _form(request)
     cfg = config.snapshot()
     cfg["site_name"] = form.get("site_name", "")
+    try:
+        cfg["menu_links"] = config.parse_menu_links(form.get("menu_links", ""))
+    except config.ConfigError as e:
+        _flash(request, str(e), ok=False)
+        return _go("/settings")
     return _save(request, cfg, "update site settings", "/settings") or _go("/settings")

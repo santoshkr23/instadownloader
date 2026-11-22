@@ -15,12 +15,13 @@ def page_context(key: str | None, *, base: str, api_base: str, site_url: str) ->
     site_name = cfg["site_name"]
     plats = config.platform_map()
     p = plats.get(key) if key else None
-    names = [x["name"] for x in plats.values() if x["mode"] == "download"]
+    modes = {k: config.effective_mode(x) for k, x in plats.items()}
+    names = [x["name"] for k, x in plats.items() if modes[k] == "download"]
     names_txt = ", ".join(names[:-1]) + (f" and {names[-1]}" if len(names) > 1 else (names[0] if names else ""))
 
     page = key or "home"
     offers = {
-        "top": config.offers_for("blocked") if p and p["mode"] == "offers" else [],
+        "top": config.offers_for("blocked") if p and modes[key] == "offers" else [],
         "home": config.offers_for("home") if not p else [],
         "pages": config.offers_for("pages") if p else [],
         "after_download": config.offers_for("after_download"),
@@ -34,8 +35,8 @@ def page_context(key: str | None, *, base: str, api_base: str, site_url: str) ->
         "api": api_base,
         "page": page,
         "platforms": [
-            {"name": x["name"], "hosts": x["hosts"], "mode": x["mode"], "notice": x["notice"]}
-            for x in plats.values()
+            {"name": x["name"], "hosts": x["hosts"], "mode": modes[k], "notice": x["notice"]}
+            for k, x in plats.items()
         ],
         "offers": [{k: o[k] for k in ("id", "title", "text", "url", "button", "image", "badge")} for o in offers["after_download"]],
     }
@@ -44,10 +45,13 @@ def page_context(key: str | None, *, base: str, api_base: str, site_url: str) ->
         "base": base,
         "api_base": api_base,
         "site_name": site_name,
+        "menu_links": cfg.get("menu_links", []),
         "site_url": site_url,
         "platforms": plats,
         "icons": {k for k in plats if _has_icon(k)},
         "current": key,
+        "modes": modes,
+        "offers_mode": bool(p) and modes[key] == "offers",
         "p": p,
         "offers": offers,
         "page": page,
