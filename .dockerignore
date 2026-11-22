@@ -1,4 +1,8 @@
 .git
-.venv
-__pycache__
+.env
+.env.*
+dist/
+__pycache__/
+*.pyc
 cookies.txt
+deploy/

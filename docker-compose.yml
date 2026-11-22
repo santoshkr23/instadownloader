@@ -1,0 +1,41 @@
+# Instadownloader on a VPS, next to PDFTool4U on the same server.
+#
+# It listens on port 8010 (PDFTool4U's Caddy keeps 80 and 443), so the two never clash.
+# Install or update with one command — see deploy/README.md:
+#   curl -fsSL https://raw.githubusercontent.com/santoshkr23/instadownloader/main/deploy/install.sh | sudo bash
+#
+# Settings live in /opt/instadownloader/.env (made by install.sh).
+# Admin-panel changes and click counts live in /opt/instadownloader-data, outside the
+# code folder, so updates never overwrite them.
+services:
+  instadownloader:
+    build: .
+    image: instadownloader:latest
+    container_name: instadownloader
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8000"
+      # keep yt-dlp current on every start; platforms change often
+      YTDLP_AUTO_UPDATE: "1"
+    ports:
+      - "${PUBLIC_PORT:-8010}:8000"
+    volumes:
+      - /opt/instadownloader-data:/app/data
+      # optional: put a cookies.txt here for login-walled posts (see README)
+      - /opt/instadownloader-secrets:/etc/secrets:ro
+    # keeps the PDF site fast even when someone converts a big video
+    cpus: 1.5
+    mem_limit: 1536m
+    pids_limit: 512
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

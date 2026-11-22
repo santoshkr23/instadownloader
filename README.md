@@ -33,6 +33,10 @@ docker run -p 8000:8000 instadownloader
 
 ## Deploy
 
+**On your own VPS (recommended):** see [deploy/README.md](deploy/README.md) — one command installs it next to PDFTool4U on port 8010, private behind a password until launch.
+
+**On Render + GitHub Pages:**
+
 The app has two parts:
 
 1. **Website → GitHub Pages** (`https://santoshkr23.github.io/instadownloader/`).
@@ -63,6 +67,7 @@ To create the token: GitHub → Settings → Developer settings → Fine-grained
 |---|---|---|
 | `ADMIN_PASSWORD` | – | Password for /admin (required to use the admin panel) |
 | `SECRET_KEY` | random | Signs the admin login cookie; Render generates it |
+| `SITE_PASSWORD` / `SITE_USER` | – | While set, the whole site asks for this username/password and is hidden from search engines (private mode) |
 | `GITHUB_TOKEN` | – | Fine-grained token with Contents read/write on this repo, so admin changes are saved to `data/config.json` |
 | `SITE_URL` | `http://localhost:8000` | Used for canonical URLs & sitemap |
 | `RATE_LIMIT_PER_MIN` | `20` | Requests per IP per minute |

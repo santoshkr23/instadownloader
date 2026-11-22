@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import admin, config, downloader, pages
+from .gate import SITE_PASSWORD, PasswordGate
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
@@ -36,6 +37,8 @@ app.add_middleware(
     allow_headers=["Content-Type"],
     expose_headers=["Content-Disposition"],
 )
+# added last so it runs first: while SITE_PASSWORD is set, nothing is served without it
+app.add_middleware(PasswordGate)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
@@ -97,6 +100,8 @@ def home(request: Request):
 
 @app.get("/robots.txt", response_class=PlainTextResponse)
 def robots():
+    if SITE_PASSWORD:  # still private: keep search engines out entirely
+        return "User-agent: *\nDisallow: /\n"
     return f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nSitemap: {SITE_URL}/sitemap.xml\n"
 
 
